@@ -1,0 +1,21 @@
+# SDD gate for sik-sdd-foundation projects. Copy to .github/workflows/sdd-check.yml.
+# Fails a pull request when plan tasks lack requirement tags, a spec or plan is
+# unapproved, status.json is stale, or a requirement changed (vs docs/requirements/
+# BASELINE.md) without an approved CR. Repositories without plans or requirement
+# documents pass, so this can be added early.
+name: sdd-check
+on:
+  pull_request:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  sdd-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # Refs: 커밋 수 집계용(참고 값). 게이트는 이력 없이도 동작한다
+      - name: progress check (CI gate)
+        run: bash .claude/skills/progress-report/scripts/progress.sh check --ci
