@@ -1,0 +1,3 @@
+# Check out LF on every OS: installed files and their MANIFEST hashes must not depend on
+# the maintainer's core.autocrlf, and bash scripts must run on macOS and in remote sessions.
+* text=auto eol=lf
