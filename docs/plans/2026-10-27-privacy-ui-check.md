@@ -5,7 +5,7 @@
 **Goal:** 운영 웹서비스를 읽기 전용으로 수집·판정해 조치방안이 담긴 HTML 보안성 검토 리포트를 만드는 privacy-ui-check 스킬을 데모 사이트 기준으로 완성한다.
 **요구사항:** REQ-001, REQ-002, REQ-003, REQ-004, REQ-005, REQ-006, REQ-007, REQ-008, REQ-009, REQ-010, REQ-011, REQ-012, REQ-013, REQ-014
 **Spec:** docs/specs/2026-10-27-privacy-ui-check.md
-**승인:** (미승인)
+**승인:** seongsik 2026-10-27
 
 ## 개요
 
