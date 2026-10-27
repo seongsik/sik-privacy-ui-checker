@@ -1,0 +1,26 @@
+{
+  "schema": 1,
+  "project": "sik-privacy-ui-checker",
+  "generated_at": "2026-10-27",
+  "standard_version": "1.7.2",
+  "requirements_baseline": "2026-10-27",
+  "changes": {"approved": 0, "proposed": 0, "rejected": 0},
+  "overall": {"progress": null, "tasks_done": 0, "tasks_total": 0, "weight_done": 0, "weight_total": 0, "untracked": 0},
+  "plans": [],
+  "requirements": [
+    {"id": "REQ-001", "title": "점검 착수 기록", "priority": "상", "status": "승인", "progress": null, "tasks_done": 0, "tasks_total": 0, "commits": 1, "plans": []},
+    {"id": "REQ-002", "title": "격리 브라우저와 사용자 직접 로그인", "priority": "상", "status": "승인", "progress": null, "tasks_done": 0, "tasks_total": 0, "commits": 1, "plans": []},
+    {"id": "REQ-003", "title": "메뉴맵 확인과 커버리지", "priority": "상", "status": "승인", "progress": null, "tasks_done": 0, "tasks_total": 0, "commits": 1, "plans": []},
+    {"id": "REQ-004", "title": "운영 데이터 수정 금지", "priority": "상", "status": "승인", "progress": null, "tasks_done": 0, "tasks_total": 0, "commits": 1, "plans": []},
+    {"id": "REQ-005", "title": "화면 수집물과 원본 격리", "priority": "상", "status": "승인", "progress": null, "tasks_done": 0, "tasks_total": 0, "commits": 1, "plans": []},
+    {"id": "REQ-006", "title": "점검 기준 데이터", "priority": "상", "status": "승인", "progress": null, "tasks_done": 0, "tasks_total": 0, "commits": 1, "plans": []},
+    {"id": "REQ-007", "title": "판정과 위험도", "priority": "상", "status": "승인", "progress": null, "tasks_done": 0, "tasks_total": 0, "commits": 1, "plans": []},
+    {"id": "REQ-008", "title": "능동 시험", "priority": "상", "status": "승인", "progress": null, "tasks_done": 0, "tasks_total": 0, "commits": 1, "plans": []},
+    {"id": "REQ-009", "title": "조치방안 제시", "priority": "상", "status": "승인", "progress": null, "tasks_done": 0, "tasks_total": 0, "commits": 1, "plans": []},
+    {"id": "REQ-010", "title": "캡처 가림과 번호 박스", "priority": "상", "status": "승인", "progress": null, "tasks_done": 0, "tasks_total": 0, "commits": 1, "plans": []},
+    {"id": "REQ-011", "title": "HTML 보안성 검토 리포트", "priority": "상", "status": "승인", "progress": null, "tasks_done": 0, "tasks_total": 0, "commits": 1, "plans": []},
+    {"id": "REQ-012", "title": "사이트 부담 제한과 중단 조건", "priority": "상", "status": "승인", "progress": null, "tasks_done": 0, "tasks_total": 0, "commits": 1, "plans": []},
+    {"id": "REQ-013", "title": "단계별 산출물과 재개", "priority": "중", "status": "승인", "progress": null, "tasks_done": 0, "tasks_total": 0, "commits": 1, "plans": []},
+    {"id": "REQ-014", "title": "검증 체계", "priority": "상", "status": "승인", "progress": null, "tasks_done": 0, "tasks_total": 0, "commits": 1, "plans": []}
+  ]
+}
