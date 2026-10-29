@@ -127,10 +127,10 @@ Expected: 실패 0, 출력에 `273 items`
 **검증:** `.venv/Scripts/python -m pytest -q tests/test_demo.py`
 Expected: 실패 0
 
-- [ ] 테스트 작성, 실패 확인
-- [ ] 구현
-- [ ] 검증 명령 통과
-- [ ] Commit (`Refs: REQ-014`)
+- [x] 테스트 작성, 실패 확인
+- [x] 구현
+- [x] 검증 명령 통과
+- [x] Commit (`Refs: REQ-014`)
 
 ### Task 5: 쓰기 차단(guard) [REQ-004, REQ-012] [w=2]
 
