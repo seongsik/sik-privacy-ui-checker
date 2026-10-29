@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 from pathlib import Path
 
 from PIL import Image, ImageDraw, ImageFont
@@ -89,6 +90,18 @@ def measure_boxes(page, boxes: list[dict]) -> list[dict]:
     return out
 
 
+def _valid_rect(img, rect) -> tuple:
+    """가릴 좌표 검사: 유한한 숫자(bool 제외), 양의 너비·높이, 이미지와 겹침. 아니면 ValueError(조용히 건너뛰지 않는다)."""
+    if len(rect) != 4 or not all(isinstance(v, (int, float)) and not isinstance(v, bool) and math.isfinite(v) for v in rect):
+        raise ValueError(f"잘못된 가림 좌표(숫자 아님): {rect}")
+    x, y, w, h = rect
+    if w <= 0 or h <= 0:
+        raise ValueError(f"잘못된 가림 좌표(크기 0 이하): {rect}")
+    if x >= img.width or y >= img.height or x + w <= 0 or y + h <= 0:
+        raise ValueError(f"가림 좌표가 이미지 밖이다: {rect} (이미지 {img.width}x{img.height})")
+    return rect
+
+
 def _clip(img, rect, pad):
     x, y, w, h = rect
     return max(0, x - pad), max(0, y - pad), min(img.width, x + w + pad), min(img.height, y + h + pad)
@@ -137,9 +150,6 @@ def render_shot(raw_menu_dir: Path, out_dir: Path, name: str, *, preview_dir: Pa
         raise ValueError("meta.json 에 pii_rects 가 없다 — 이 화면을 다시 수집한다")
     if meta.get("rects_stable") is False:
         raise ValueError("캡처 전후 가림 좌표가 달랐다 — 화면이 멈춘 상태에서 다시 수집한다")
-    for r in meta["pii_rects"]:
-        if not all(isinstance(r.get(k), (int, float)) for k in ("x", "y", "w", "h")) or r.get("kind") not in KINDS:
-            raise ValueError(f"잘못된 가림 좌표: {r}")
     boxes = meta.get("box_rects", []) if boxes is None else boxes
     missing = [str(b["n"]) for b in boxes if b.get("missing")]
     if missing:
@@ -147,10 +157,13 @@ def render_shot(raw_menu_dir: Path, out_dir: Path, name: str, *, preview_dir: Pa
     with Image.open(raw_menu_dir / "screenshot.png") as im:
         img = Image.new("RGB", im.size)
         img.paste(im.convert("RGB"))  # 메타데이터 없는 새 이미지
-    for r in meta.get("pii_rects", []):
-        (solid if r["kind"] in SOLID_KINDS else pixelate)(img, (r["x"], r["y"], r["w"], r["h"]))
+    for r in meta["pii_rects"]:
+        if r.get("kind") not in KINDS:
+            raise ValueError(f"잘못된 가림 좌표(종류): {r}")
+        rect = _valid_rect(img, (r.get("x"), r.get("y"), r.get("w"), r.get("h")))
+        (solid if r["kind"] in SOLID_KINDS else pixelate)(img, rect)
     for rect in extra:
-        pixelate(img, tuple(rect))
+        pixelate(img, _valid_rect(img, tuple(rect)))
     for b in boxes:
         draw_box(img, (b["x"], b["y"], b["w"], b["h"]), b["n"])
     out_dir.mkdir(parents=True, exist_ok=True)

@@ -177,3 +177,19 @@ def test_collect_marks_stable_measurements(demo, tmp_path):
 
 def test_collect_marks_moving_page_unstable(demo, tmp_path):
     assert _collect_one(demo, tmp_path, "/__moving")["rects_stable"] is False
+
+
+@pytest.mark.parametrize("bad", [
+    {"x": True, "y": 0, "w": 5, "h": 5, "kind": "email"},
+    {"x": float("nan"), "y": 0, "w": 5, "h": 5, "kind": "email"},
+    {"x": 10, "y": 0, "w": 0, "h": 5, "kind": "email"},
+    {"x": 10, "y": 0, "w": 5, "h": -3, "kind": "email"},
+    {"x": 5000, "y": 5000, "w": 10, "h": 10, "kind": "email"},
+])
+def test_render_shot_rejects_degenerate_or_offimage_rects(tmp_path, bad):
+    raw = tmp_path / "M1"
+    raw.mkdir()
+    blank().save(raw / "screenshot.png")
+    (raw / "meta.json").write_text(json.dumps({"pii_rects": [bad], "box_rects": []}), encoding="utf-8")
+    with pytest.raises(ValueError):
+        mask.render_shot(raw, tmp_path / "img", "V-001_1")
