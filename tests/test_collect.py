@@ -166,3 +166,35 @@ def test_collected_cookie_values_are_masked(browser, storage, demo, tmp_path):
     cookies = json.loads((raw / "M1" / "cookies.json").read_text(encoding="utf-8"))
     sid = next(c for c in cookies if c["name"] == "SID")
     assert sid["value"] == "***" and "httpOnly" in sid
+
+
+@pytest.mark.parametrize("name", ["access_token", "refresh_token", "id_token", "token", "sessid", "jsessionid",
+                                  "api_key", "apiKey", "client_secret", "otp"])
+def test_scrub_har_masks_token_like_names(name):
+    har = {"log": {"entries": [{"request": {
+        "url": f"https://x/a?{name}=s3cret&page=2",
+        "queryString": [{"name": name, "value": "s3cret"}],
+        "postData": {"mimeType": "application/json", "text": json.dumps({name: "s3cret", "page": 2})},
+    }}]}}
+    text = json.dumps(scrub_har(har))
+    assert "s3cret" not in text and "page" in text
+
+
+@pytest.mark.parametrize("header", ["X-Auth-Token", "X-API-Key", "X-CSRF-Token", "X-XSRF-TOKEN",
+                                    "X-Amz-Security-Token", "X-Session-Id", "X-Client-Secret"])
+def test_scrub_har_masks_token_headers(header):
+    har = {"log": {"entries": [{"request": {"url": "https://x/", "headers": [{"name": header, "value": "s3cret"},
+                                                                          {"name": "Accept", "value": "text/html"}]}}]}}
+    text = json.dumps(scrub_har(har))
+    assert "s3cret" not in text and "text/html" in text
+
+
+def test_scrub_har_masks_jsessionid_path_parameter():
+    har = {"log": {"entries": [{"request": {"url": "https://x/board;jsessionid=ABC123?x=1"}}]}}
+    assert "ABC123" not in json.dumps(scrub_har(har))
+
+
+def test_scrub_har_keeps_ordinary_names():
+    har = {"log": {"entries": [{"request": {"url": "https://x/a?passport_no=M123&keyword=kim&author=lee"}}]}}
+    text = json.dumps(scrub_har(har))
+    assert "M123" in text and "kim" in text and "lee" in text

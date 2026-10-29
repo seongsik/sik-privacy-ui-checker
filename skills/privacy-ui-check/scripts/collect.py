@@ -29,10 +29,16 @@ from scripts.guard import install_guard
 from scripts.session import new_context
 
 ARTIFACTS = ("screenshot.png", "dom.html", "network.har", "cookies.json", "storage.json", "headers.json", "meta.json")
-# 비밀번호 계열 이름: password·passwd·pwd 를 포함하거나(j_password, userPassword, password_confirm, pwd2),
-# pw 가 단어로 쓰인 것(pw, user_pw, pw2), pass 단독. passport 같은 이름은 잡지 않는다.
-SECRET_NAME = re.compile(r"(password|passwd|pwd|비밀번호)|(^|[_\-.])pw\d*($|[_\-.])|^pass$", re.I)
-SECRET_HEADERS = {"cookie", "set-cookie", "authorization", "proxy-authorization"}
+# 가릴 이름(파라미터·JSON 키·폼 필드):
+#  - 비밀번호 계열: password·passwd·pwd 포함(j_password, userPassword, password_confirm, pwd2), 단어로 쓰인 pw, pass 단독
+#  - 인증 값 계열: token(access_token 등), secret, 세션 ID, API 키, OTP
+# passport_no, keyword, author 같은 이름은 잡지 않는다.
+SECRET_NAME = re.compile(
+    r"(password|passwd|pwd|비밀번호|token|secret|sessid|session_?id|jsessionid|api[_\-]?key)"
+    r"|(^|[_\-.])pw\d*($|[_\-.])|^pass$|^otp$|^sid$", re.I)
+# 가릴 헤더: 쿠키·인증 헤더와 이름에 token·auth·session·secret·api-key 가 들어간 헤더
+SECRET_HEADER = re.compile(r"cookie|authorization|token|auth|session|secret|api-?key", re.I)
+_PATH_SESSION = re.compile(r"(;jsessionid=)[^?#&;\s\"'\\]*", re.I)
 _PAIR = re.compile(r"((?:^|[?&\s\"'])([\w.\-]+)=)([^&#\s\"'\\]*)")
 _JSON = re.compile(r'("([\w.\-]+)"\s*:\s*")((?:[^"\\]|\\.)*)(")')
 _MULTIPART = re.compile(r'(name="([^"]+)"\r?\n(?:[^\r\n]+\r?\n)*\r?\n)([^\r\n]*)')
@@ -53,21 +59,22 @@ def _scrub_text(text: str) -> str:
         return m.group(1) + "***" + (m.group(4) if m.re is _JSON else "") if SECRET_NAME.search(m.group(2)) else m.group(0)
     for pattern in (_PAIR, _JSON, _MULTIPART):
         text = pattern.sub(mask, text)
-    return text
+    return _PATH_SESSION.sub(r"\1***", text)
 
 
-def scrub_har(node, _in_cookies: bool = False):
-    """HAR(dict)의 비밀번호 계열 값, 쿠키 값, 인증 헤더 값을 *** 로 바꾼다.
-    name/value 쌍, URL·urlencoded·JSON·multipart 본문 문자열을 모두 본다."""
+def scrub_har(node, _list_of: str = ""):
+    """HAR(dict)의 비밀번호·인증 값, 쿠키 값, 인증 헤더 값을 *** 로 바꾼다.
+    name/value 쌍(쿠키·헤더·쿼리·폼), URL(;jsessionid= 포함)·urlencoded·JSON·multipart 본문 문자열을 모두 본다."""
     if isinstance(node, dict):
-        out = {k: scrub_har(v, k == "cookies") for k, v in node.items()}
+        out = {k: scrub_har(v, k) for k, v in node.items()}
         name = out.get("name")
         if isinstance(name, str) and "value" in out and (
-                _in_cookies or SECRET_NAME.search(name) or name.lower() in SECRET_HEADERS):
+                _list_of == "cookies" or SECRET_NAME.search(name)
+                or (_list_of == "headers" and SECRET_HEADER.search(name))):
             out["value"] = "***"
         return out
     if isinstance(node, list):
-        return [scrub_har(v, _in_cookies) for v in node]
+        return [scrub_har(v, _list_of) for v in node]
     if isinstance(node, str):
         return _scrub_text(node)
     return node
