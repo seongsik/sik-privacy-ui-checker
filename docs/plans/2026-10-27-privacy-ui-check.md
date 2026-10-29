@@ -110,10 +110,10 @@ Expected: 실패 0
 **검증:** `.venv/Scripts/python -m pytest -q tests/test_criteria.py`
 Expected: 실패 0, 출력에 `273 items`
 
-- [ ] 테스트 작성, 실패 확인
-- [ ] 구현
-- [ ] 검증 명령 통과
-- [ ] Commit (`Refs: REQ-006, REQ-009`)
+- [x] 테스트 작성, 실패 확인
+- [x] 구현
+- [x] 검증 명령 통과
+- [x] Commit (`Refs: REQ-006, REQ-009`)
 
 ### Task 4: 데모 사이트 [REQ-014] [w=3]
 
