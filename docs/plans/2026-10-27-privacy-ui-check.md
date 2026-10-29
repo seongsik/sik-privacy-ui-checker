@@ -93,10 +93,10 @@ Expected: `1 passed` 이상, 실패 0
 **검증:** `.venv/Scripts/python -m pytest -q tests/test_models.py`
 Expected: 실패 0
 
-- [ ] 테스트 작성, 실패 확인
-- [ ] 구현
-- [ ] 검증 명령 통과
-- [ ] Commit (`Refs: REQ-001, REQ-007, REQ-011, REQ-013`)
+- [x] 테스트 작성, 실패 확인
+- [x] 구현
+- [x] 검증 명령 통과
+- [x] Commit (`Refs: REQ-001, REQ-007, REQ-011, REQ-013`)
 
 ### Task 3: 점검 기준 YAML [REQ-006, REQ-009] [w=2]
 
