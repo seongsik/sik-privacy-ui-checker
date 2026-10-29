@@ -29,9 +29,13 @@ from scripts.guard import install_guard
 from scripts.session import new_context
 
 ARTIFACTS = ("screenshot.png", "dom.html", "network.har", "cookies.json", "storage.json", "headers.json", "meta.json")
-SECRET_KEY = re.compile(r"^(password|passwd|pwd|pw|pass|user_?pw|비밀번호)$", re.I)
-SECRET_PAIR = re.compile(r"((?:^|[?&\s\"'])(?:password|passwd|pwd|pw|pass|user_?pw)=)[^&#\s\"'\\]*", re.I)
-SECRET_JSON = re.compile(r'("(?:password|passwd|pwd|pw|pass)"\s*:\s*")[^"]*(")', re.I)
+# 비밀번호 계열 이름: password·passwd·pwd 를 포함하거나(j_password, userPassword, password_confirm, pwd2),
+# pw 가 단어로 쓰인 것(pw, user_pw, pw2), pass 단독. passport 같은 이름은 잡지 않는다.
+SECRET_NAME = re.compile(r"(password|passwd|pwd|비밀번호)|(^|[_\-.])pw\d*($|[_\-.])|^pass$", re.I)
+SECRET_HEADERS = {"cookie", "set-cookie", "authorization", "proxy-authorization"}
+_PAIR = re.compile(r"((?:^|[?&\s\"'])([\w.\-]+)=)([^&#\s\"'\\]*)")
+_JSON = re.compile(r'("([\w.\-]+)"\s*:\s*")((?:[^"\\]|\\.)*)(")')
+_MULTIPART = re.compile(r'(name="([^"]+)"\r?\n(?:[^\r\n]+\r?\n)*\r?\n)([^\r\n]*)')
 WAF_RE = re.compile(r"blocked by waf|web application firewall|request blocked|access denied by security policy", re.I)
 CAPTCHA_RE = re.compile(r"captcha|recaptcha|hcaptcha|자동입력 ?방지", re.I)
 READ_STORAGE = """() => { const d = s => Object.fromEntries(Object.keys(s).map(k => [k, s.getItem(k)]));
@@ -45,18 +49,25 @@ class CollectStopped(RuntimeError):
 
 
 def _scrub_text(text: str) -> str:
-    return SECRET_JSON.sub(r"\1***\2", SECRET_PAIR.sub(r"\1***", text))
+    def mask(m):
+        return m.group(1) + "***" + (m.group(4) if m.re is _JSON else "") if SECRET_NAME.search(m.group(2)) else m.group(0)
+    for pattern in (_PAIR, _JSON, _MULTIPART):
+        text = pattern.sub(mask, text)
+    return text
 
 
-def scrub_har(node):
-    """HAR(dict)의 비밀번호 계열 값을 *** 로 바꾼다. name/value 쌍과 URL·본문 문자열을 모두 본다."""
+def scrub_har(node, _in_cookies: bool = False):
+    """HAR(dict)의 비밀번호 계열 값, 쿠키 값, 인증 헤더 값을 *** 로 바꾼다.
+    name/value 쌍, URL·urlencoded·JSON·multipart 본문 문자열을 모두 본다."""
     if isinstance(node, dict):
-        out = {k: scrub_har(v) for k, v in node.items()}
-        if isinstance(out.get("name"), str) and SECRET_KEY.match(out["name"]) and "value" in out:
+        out = {k: scrub_har(v, k == "cookies") for k, v in node.items()}
+        name = out.get("name")
+        if isinstance(name, str) and "value" in out and (
+                _in_cookies or SECRET_NAME.search(name) or name.lower() in SECRET_HEADERS):
             out["value"] = "***"
         return out
     if isinstance(node, list):
-        return [scrub_har(v) for v in node]
+        return [scrub_har(v, _in_cookies) for v in node]
     if isinstance(node, str):
         return _scrub_text(node)
     return node
@@ -134,7 +145,7 @@ def collect(browser, storage_state: Path, intake: dict, menu_map: dict, raw_dir:
         out.mkdir(parents=True, exist_ok=True)
         page.screenshot(path=str(out / "screenshot.png"), full_page=True)
         (out / "dom.html").write_text(page.content(), encoding="utf-8")
-        _dump(out / "cookies.json", ctx.cookies())
+        _dump(out / "cookies.json", [dict(c, value="***") for c in ctx.cookies()])  # 속성만 쓴다
         _dump(out / "storage.json", page.evaluate(READ_STORAGE))
         _dump(out / "headers.json", {
             "url": menu["url"], "final_url": page.url,

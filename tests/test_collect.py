@@ -130,3 +130,39 @@ def test_only_recollects_named_menu(browser, storage, demo, tmp_path):
     before = (tmp_path / "raw" / "M2" / "meta.json").stat().st_mtime_ns
     run(browser, storage, demo, menus, tmp_path, only=["M1"])
     assert (tmp_path / "raw" / "M2" / "meta.json").stat().st_mtime_ns == before
+
+
+@pytest.mark.parametrize("name", ["j_password", "userPassword", "new_password", "password_confirm", "pwd2", "user_pw"])
+def test_scrub_har_masks_password_like_names(name):
+    har = {"log": {"entries": [{"request": {
+        "url": f"https://x/a?{name}=s3cret&id=kim",
+        "queryString": [{"name": name, "value": "s3cret"}, {"name": "id", "value": "kim"}],
+        "postData": {"mimeType": "application/json", "text": json.dumps({name: "s3cret", "id": "kim"})},
+    }}]}}
+    text = json.dumps(scrub_har(har))
+    assert "s3cret" not in text and "kim" in text
+
+
+def test_scrub_har_masks_multipart_password_part():
+    body = ('------b\r\nContent-Disposition: form-data; name="userPassword"\r\n\r\ns3cret\r\n'
+            '------b\r\nContent-Disposition: form-data; name="id"\r\n\r\nkim\r\n------b--\r\n')
+    har = {"log": {"entries": [{"request": {"url": "https://x/a", "postData": {"mimeType": "multipart/form-data", "text": body}}}]}}
+    text = json.dumps(scrub_har(har))
+    assert "s3cret" not in text and "kim" in text
+
+
+def test_scrub_har_masks_auth_and_cookie_headers():
+    har = {"log": {"entries": [{
+        "request": {"url": "https://x/", "headers": [{"name": "Cookie", "value": "SID=abc123"},
+                                                     {"name": "Authorization", "value": "Bearer tok"}]},
+        "response": {"headers": [{"name": "Set-Cookie", "value": "SID=abc123; Path=/"}]},
+    }]}}
+    text = json.dumps(scrub_har(har))
+    assert "abc123" not in text and "tok" not in text
+
+
+def test_collected_cookie_values_are_masked(browser, storage, demo, tmp_path):
+    raw = run(browser, storage, demo, [menu("M1", demo.url("/my"), auth="user")], tmp_path)
+    cookies = json.loads((raw / "M1" / "cookies.json").read_text(encoding="utf-8"))
+    sid = next(c for c in cookies if c["name"] == "SID")
+    assert sid["value"] == "***" and "httpOnly" in sid
