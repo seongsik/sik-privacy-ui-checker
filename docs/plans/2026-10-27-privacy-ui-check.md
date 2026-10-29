@@ -75,10 +75,10 @@
 **검증:** `.venv/Scripts/python -m pytest -q tests/test_smoke.py`
 Expected: `1 passed` 이상, 실패 0
 
-- [ ] 테스트 작성, 실패 확인
-- [ ] 구현
-- [ ] 검증 명령 통과
-- [ ] Commit (`Refs: REQ-014`)
+- [x] 테스트 작성, 실패 확인
+- [x] 구현
+- [x] 검증 명령 통과
+- [x] Commit (`Refs: REQ-014`)
 
 ### Task 2: 데이터 모델 [REQ-001, REQ-007, REQ-011, REQ-013] [w=2]
 
