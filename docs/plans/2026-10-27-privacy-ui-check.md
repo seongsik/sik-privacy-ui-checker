@@ -276,10 +276,10 @@ Expected: 실패 0
 **검증:** `.venv/Scripts/python -m pytest -q tests/test_verify_report.py`
 Expected: 실패 0
 
-- [ ] 테스트 작성, 실패 확인
-- [ ] 구현
-- [ ] 검증 명령 통과
-- [ ] Commit (`Refs: REQ-011, REQ-014`)
+- [x] 테스트 작성, 실패 확인
+- [x] 구현
+- [x] 검증 명령 통과
+- [x] Commit (`Refs: REQ-011, REQ-014`)
 
 ### Task 14: SKILL.md와 참조 문서 [REQ-001, REQ-007, REQ-008, REQ-009, REQ-012] [w=2]
 
