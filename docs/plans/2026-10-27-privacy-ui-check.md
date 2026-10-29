@@ -227,10 +227,10 @@ Expected: 실패 0
 **검증:** `.venv/Scripts/python -m pytest -q tests/test_active_test.py`
 Expected: 실패 0
 
-- [ ] 테스트 작성, 실패 확인
-- [ ] 구현
-- [ ] 검증 명령 통과
-- [ ] Commit (`Refs: REQ-008`)
+- [x] 테스트 작성, 실패 확인
+- [x] 구현
+- [x] 검증 명령 통과
+- [x] Commit (`Refs: REQ-008`)
 
 ### Task 11: 가림과 번호 박스 [REQ-010] [w=2]
 
