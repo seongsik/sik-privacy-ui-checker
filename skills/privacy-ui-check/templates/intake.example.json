@@ -1,0 +1,20 @@
+{
+  "target_url": "https://shop.example.com",
+  "approval": {
+    "approver": "정보보호팀장 (예시)",
+    "scope": "회원 영역 전체, 관리자 화면 제외",
+    "period": "2026-11-02 ~ 2026-11-06"
+  },
+  "inspector": "점검 담당자 (예시)",
+  "account_role": "일반 회원 테스트 계정",
+  "conditions": {
+    "users_over_1m_daily": false,
+    "subjects_over_100k": true,
+    "public_institution": false,
+    "public_system": false,
+    "children_under_14": false,
+    "sends_marketing": true,
+    "has_test_account": true
+  },
+  "allowed_domains": ["shop.example.com"]
+}
