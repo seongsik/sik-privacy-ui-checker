@@ -27,8 +27,9 @@ class Demo:
         req = urllib.request.Request(self.url("/__reset"), method="POST", data=b"")
         urllib.request.urlopen(req).close()
 
-    def login_url(self) -> str:
-        return self.url(f"/login/submit?id={DEMO_USER}&pw={DEMO_PASS}")
+    def login_url(self, next_path: str = "/faq") -> str:
+        # 기본 착지 화면은 쓰기 함정이 없는 /faq: 로그인 단계에는 guard 가 꺼져 있으므로(설계서 7-2)
+        return self.url(f"/login/submit?id={DEMO_USER}&pw={DEMO_PASS}&next={next_path}")
 
 
 @pytest.fixture(scope="session")
