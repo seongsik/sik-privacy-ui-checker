@@ -132,8 +132,9 @@ class Handler(BaseHTTPRequestHandler):
             return self.send(layout("보안 확인", '<div class="g-recaptcha captcha">자동입력 방지 문자를 입력하세요</div>'))
         if path == "/go":  # 리다이렉트로 상태 변경 GET 에 닿는 함정
             return self.redirect(q.get("to", ["/"])[0])
-        if path == "/__expire":
-            SESSIONS.clear()
+        if path == "/__expire":  # 요청한 쪽의 세션만 끝낸다
+            for c in self.headers.get("Cookie", "").split(";"):
+                SESSIONS.discard(c.strip()[4:]) if c.strip().startswith("SID=") else None
             return self.send("expired", ctype="text/plain")
         route = PUBLIC.get(path)
         if route:
@@ -160,8 +161,7 @@ class Handler(BaseHTTPRequestHandler):
         body = self.read_body()
         if path == "/__reset":
             with LOCK:
-                WRITES.clear()
-                SESSIONS.clear()
+                WRITES.clear()  # 세션은 지우지 않는다(만료 시험은 /__expire)
                 ADMIN_FAILS["count"] = 0
             return self.send("ok", ctype="text/plain")
         if path in READONLY_POST:

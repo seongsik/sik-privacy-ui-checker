@@ -31,13 +31,15 @@ def _check_outside(storage_state: Path, workdir: Path) -> None:
         raise ValueError(f"세션 파일은 작업 폴더 밖에 둔다: {storage_state}")
 
 
-def new_context(browser, storage_state: Path | None = None):
-    """점검용 컨텍스트. Service Worker 는 막는다(그 요청은 route 로 가로챌 수 없어 쓰기 차단을 우회한다)."""
+def new_context(browser, storage_state: Path | None = None, **options):
+    """점검용 컨텍스트. Service Worker 는 막는다(그 요청은 route 로 가로챌 수 없어 쓰기 차단을 우회한다).
+    options 는 HAR 기록 같은 Playwright 컨텍스트 옵션을 더할 때 쓴다."""
     ctx = browser.new_context(
         viewport=VIEWPORT,
         device_scale_factor=1,
         service_workers="block",
         storage_state=str(storage_state) if storage_state else None,
+        **options,
     )
     setattr(ctx, SW_BLOCKED_MARK, True)
     return ctx
