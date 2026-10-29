@@ -142,3 +142,16 @@ def test_candidates_carry_evidence_and_box_targets(demo_candidates):
     for c in cands:
         assert c["evidence"], c["key"]
         assert c["verdict_hint"] in ("취약", "권고")
+
+
+FULL_VALUES = ("900101-1234567", "4111-1111-1111-1111", "kim@example.com", "010-9876-5432")
+
+
+@pytest.mark.parametrize("r", [
+    rec("<!-- debug: kim@example.com 010-9876-5432 --><p>x</p>"),
+    rec('<input name="ssn" value="900101-1234567"><p>카드 4111-1111-1111-1111</p>'),
+    rec("<p>연락처 010-9876-5432, kim@example.com</p>"),
+])
+def test_evidence_never_carries_full_personal_values(r):
+    text = json.dumps(ac.check_page(r), ensure_ascii=False)
+    assert not [v for v in FULL_VALUES if v in text]

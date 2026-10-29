@@ -139,10 +139,18 @@ class PageRecord:
         return self._dom
 
 
+def mask_pii(text: str) -> str:
+    """증적 문구에 들어갈 개인정보를 부분 가림한다(candidates.json 은 작업 폴더에 남는다)."""
+    text = RRN.sub(lambda m: m.group(0)[:8] + "******", text)
+    text = CARD.sub(lambda m: m.group(0)[:4] + "-****-****-" + m.group(0)[-4:], text)
+    text = MOBILE.sub(lambda m: m.group(0)[:3] + "-****-" + m.group(0)[-4:], text)
+    return EMAIL.sub(lambda m: m.group(0)[:2] + "***@" + m.group(0).split("@", 1)[1], text)
+
+
 def _cand(key, menu, evidence, boxes=()):
     return {"key": key, "item_ids": ITEM_IDS[key], "menu": menu,
             "verdict_hint": "권고" if key in ADVICE else "취약",
-            "evidence": list(evidence), "boxes": list(boxes)}
+            "evidence": [mask_pii(e) for e in evidence], "boxes": list(boxes)}
 
 
 def _input_selector(inp: dict) -> str:
