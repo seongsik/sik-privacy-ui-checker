@@ -169,3 +169,32 @@ def test_navigation_outside_scope_is_blocked(browser, demo):
         page.goto("http://example.invalid/")
     assert any(e["reason"] == "out-of-scope" for e in guard.blocked_log)
     ctx.close()
+
+
+@pytest.mark.parametrize("to", ["/logout", "/my/address/delete?id=1"])
+def test_redirect_to_state_changing_get_is_blocked(browser, demo, to):
+    ctx, page, guard = make(browser, demo)
+    try:
+        page.goto(demo.url("/go?to=" + to))
+    except PlaywrightError:
+        pass
+    assert demo.writes() == []
+    assert any(e["reason"] == "deny-pattern" for e in guard.blocked_log)
+    ctx.close()
+
+
+def test_safe_redirect_still_works_and_keeps_session(browser, demo):
+    ctx, page, guard = make(browser, demo)
+    page.goto(demo.url("/go?to=/my/orders"))
+    assert page.url.endswith("/my/orders")
+    assert page.locator("table.orders").count() == 1
+    ctx.close()
+
+
+def test_redirect_trap_writes_without_guard(browser, demo):
+    # 대조군: guard 가 없으면 /go → /logout 이 서버에 닿는다(위 차단 테스트가 실제로 실패할 수 있음)
+    ctx = new_context(browser)
+    page = ctx.new_page()
+    page.goto(demo.url("/go?to=/logout"))
+    assert any(w["path"] == "/logout" for w in demo.writes())
+    ctx.close()
