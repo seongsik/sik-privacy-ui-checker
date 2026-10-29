@@ -130,6 +130,10 @@ class Handler(BaseHTTPRequestHandler):
             return self.send("<h1>Request blocked by WAF</h1>", 403)
         if path == "/__captcha":
             return self.send(layout("보안 확인", '<div class="g-recaptcha captcha">자동입력 방지 문자를 입력하세요</div>'))
+        if path == "/__moving":  # 개인정보 글자가 계속 움직이는 화면(가림 좌표 흔들림 시험)
+            return self.send(layout("이동", '<p id="mv" style="position:relative">연락처 010-2222-3333</p>',
+                                    head="<script>let i=0;setInterval(()=>{document.getElementById('mv').style.left="
+                                         "(i++%40)*5+'px';},30);</script>"))
         if path == "/go":  # 리다이렉트로 상태 변경 GET 에 닿는 함정
             return self.redirect(q.get("to", ["/"])[0])
         if path == "/__expire":  # 요청한 쪽의 세션만 끝낸다

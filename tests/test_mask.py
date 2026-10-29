@@ -128,3 +128,52 @@ def test_collect_measures_pii_and_requested_boxes(demo, tmp_path):
     meta = json.loads((tmp_path / "raw" / "M1" / "meta.json").read_text(encoding="utf-8"))
     assert any(r["kind"] == "rrn" for r in meta["pii_rects"])
     assert meta["box_rects"][0]["n"] == 1 and meta["box_rects"][0]["w"] > 0
+
+
+def test_render_shot_fails_closed_without_measurements(tmp_path):
+    raw = tmp_path / "M1"
+    raw.mkdir()
+    blank().save(raw / "screenshot.png")
+    (raw / "meta.json").write_text(json.dumps({"box_rects": []}), encoding="utf-8")
+    with pytest.raises(ValueError, match="pii_rects"):
+        mask.render_shot(raw, tmp_path / "img", "V-001_1")
+
+
+@pytest.mark.parametrize("bad", [{"x": "10", "y": 0, "w": 5, "h": 5, "kind": "email"},
+                                 {"x": 10, "y": 0, "w": 5, "h": 5, "kind": "weird"}])
+def test_render_shot_rejects_malformed_rects(tmp_path, bad):
+    raw = tmp_path / "M1"
+    raw.mkdir()
+    blank().save(raw / "screenshot.png")
+    (raw / "meta.json").write_text(json.dumps({"pii_rects": [bad], "box_rects": []}), encoding="utf-8")
+    with pytest.raises(ValueError):
+        mask.render_shot(raw, tmp_path / "img", "V-001_1")
+
+
+def test_render_shot_refuses_unstable_measurements(tmp_path):
+    raw = tmp_path / "M1"
+    raw.mkdir()
+    blank().save(raw / "screenshot.png")
+    (raw / "meta.json").write_text(json.dumps({"pii_rects": [], "box_rects": [], "rects_stable": False}), encoding="utf-8")
+    with pytest.raises(ValueError, match="다시 수집"):
+        mask.render_shot(raw, tmp_path / "img", "V-001_1")
+
+
+def _collect_one(demo, tmp_path, url):
+    work = tmp_path / "work"
+    work.mkdir(exist_ok=True)
+    menus = [{"id": "M1", "path": ["x"], "url": demo.url(url), "status": "visit", "auth": "none"}]
+    with sync_playwright() as p:
+        b = p.chromium.launch()
+        collect(b, None, {"target_url": demo.base, "allowed_domains": ["127.0.0.1"]}, {"menus": menus},
+                tmp_path / "raw", work, delay_s=0)
+        b.close()
+    return json.loads((tmp_path / "raw" / "M1" / "meta.json").read_text(encoding="utf-8"))
+
+
+def test_collect_marks_stable_measurements(demo, tmp_path):
+    assert _collect_one(demo, tmp_path, "/board/1")["rects_stable"] is True
+
+
+def test_collect_marks_moving_page_unstable(demo, tmp_path):
+    assert _collect_one(demo, tmp_path, "/__moving")["rects_stable"] is False

@@ -20,6 +20,10 @@ from PIL import Image, ImageDraw, ImageFont
 
 CELL, PAD = 9, 3
 SOLID_KINDS = {"rrn", "card"}
+KINDS = SOLID_KINDS | {"mobile", "email", "name"}
+# 측정과 캡처 사이에 화면이 움직이지 않게 애니메이션·전환·커서 깜박임을 멈춘다
+FREEZE_CSS = "*,*::before,*::after{animation:none!important;transition:none!important;caret-color:transparent!important}"
+DOC_SIZE = "() => [document.documentElement.scrollWidth, document.documentElement.scrollHeight]"
 SOLID_COLOR = (120, 128, 140)
 BOX_COLOR = (229, 62, 62)
 
@@ -128,6 +132,14 @@ def render_shot(raw_menu_dir: Path, out_dir: Path, name: str, *, preview_dir: Pa
                 extra=(), boxes: list[dict] | None = None, img_prefix: str = "img/") -> dict:
     raw_menu_dir, out_dir = Path(raw_menu_dir), Path(out_dir)
     meta = json.loads((raw_menu_dir / "meta.json").read_text(encoding="utf-8"))
+    # 가림은 실패하면 닫힌다: 측정이 없거나, 흔들렸거나, 모양이 틀리면 이미지를 만들지 않는다
+    if "pii_rects" not in meta:
+        raise ValueError("meta.json 에 pii_rects 가 없다 — 이 화면을 다시 수집한다")
+    if meta.get("rects_stable") is False:
+        raise ValueError("캡처 전후 가림 좌표가 달랐다 — 화면이 멈춘 상태에서 다시 수집한다")
+    for r in meta["pii_rects"]:
+        if not all(isinstance(r.get(k), (int, float)) for k in ("x", "y", "w", "h")) or r.get("kind") not in KINDS:
+            raise ValueError(f"잘못된 가림 좌표: {r}")
     boxes = meta.get("box_rects", []) if boxes is None else boxes
     missing = [str(b["n"]) for b in boxes if b.get("missing")]
     if missing:

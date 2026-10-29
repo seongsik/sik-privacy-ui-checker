@@ -26,7 +26,7 @@ from pathlib import Path
 from urllib.parse import urlparse
 
 from scripts.guard import install_guard
-from scripts.mask import MEASURE_PII, measure_boxes
+from scripts.mask import DOC_SIZE, FREEZE_CSS, MEASURE_PII, measure_boxes
 from scripts.session import new_context
 
 ARTIFACTS = ("screenshot.png", "dom.html", "network.har", "cookies.json", "storage.json", "headers.json", "meta.json")
@@ -108,6 +108,20 @@ def _check(menu: dict, resp, page, forbidden_streak: int) -> tuple[str | None, i
     return None, forbidden_streak
 
 
+def _capture_with_rects(page, shot_path: Path, boxes: list[dict], tries: int = 3):
+    """애니메이션을 멈추고 좌표 측정 → 캡처 → 재측정. 두 측정과 문서 크기가 같아야 안정으로 본다."""
+    page.add_style_tag(content=FREEZE_CSS)
+    for _ in range(tries):
+        size, before = page.evaluate(DOC_SIZE), page.evaluate(MEASURE_PII)
+        box_before = measure_boxes(page, boxes)
+        page.screenshot(path=str(shot_path), full_page=True, animations="disabled")
+        after, box_after = page.evaluate(MEASURE_PII), measure_boxes(page, boxes)
+        if before == after and box_before == box_after and size == page.evaluate(DOC_SIZE):
+            return before, box_before, True
+        page.wait_for_timeout(300)
+    return after, box_after, False
+
+
 def collect(browser, storage_state: Path, intake: dict, menu_map: dict, raw_dir: Path, workdir: Path, *,
             only: list[str] | None = None, allow_post=(), delay_s: float = 1.5,
             boxes: dict[str, list[dict]] | None = None) -> dict:
@@ -153,7 +167,8 @@ def collect(browser, storage_state: Path, intake: dict, menu_map: dict, raw_dir:
             raise CollectStopped(reason, menu["id"], page.url)
 
         out.mkdir(parents=True, exist_ok=True)
-        page.screenshot(path=str(out / "screenshot.png"), full_page=True)
+        pii_rects, box_rects, stable = _capture_with_rects(page, out / "screenshot.png",
+                                                           (boxes or {}).get(menu["id"], []))
         (out / "dom.html").write_text(page.content(), encoding="utf-8")
         _dump(out / "cookies.json", [dict(c, value="***") for c in ctx.cookies()])  # 속성만 쓴다
         _dump(out / "storage.json", page.evaluate(READ_STORAGE))
@@ -166,9 +181,8 @@ def collect(browser, storage_state: Path, intake: dict, menu_map: dict, raw_dir:
             "menu": menu, "title": page.title(), "error": error,
             "accessible": bool(resp and resp.ok),
             "blocked": guard.blocked_log, "collected_at": datetime.now(timezone.utc).isoformat(),
-            # 가림·번호 박스 좌표(문서 기준 px): 스크린샷과 같은 순간에 잰다
-            "pii_rects": page.evaluate(MEASURE_PII),
-            "box_rects": measure_boxes(page, (boxes or {}).get(menu["id"], [])),
+            # 가림·번호 박스 좌표(문서 기준 px). rects_stable=False 면 mask 가 이미지를 만들지 않는다
+            "pii_rects": pii_rects, "box_rects": box_rects, "rects_stable": stable,
         })
         ctx.close()  # 여기서 HAR 이 써진다
         har = json.loads(har_tmp.read_text(encoding="utf-8"))
