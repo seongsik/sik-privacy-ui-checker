@@ -30,11 +30,12 @@ def wrong_admin_logins(n):
             page.fill('input[name="pw"]', "wrong-pass")
             page.click('form[action="/admin/login"] button')
             page.wait_for_load_state()
-            try:
-                page.goto(admin_url)
-            except PlaywrightError:  # 한도를 넘은 시도는 막혀 오류 화면 이동과 겹칠 수 있다
-                page.wait_for_timeout(300)
-                page.goto(admin_url)
+            for _ in range(3):  # 한도를 넘은 시도는 막혀 오류 화면 이동과 겹칠 수 있다
+                try:
+                    page.goto(admin_url)
+                    break
+                except PlaywrightError:
+                    page.wait_for_timeout(300)
     return drive
 
 
@@ -101,3 +102,22 @@ def test_get_login_attempts_are_counted_without_writes(browser, demo, tmp_path):
 def test_refuses_raw_dir_inside_workdir(browser, demo, tmp_path):
     with pytest.raises(ValueError, match="작업 폴더 밖"):
         run(browser, demo, tmp_path, raw_dir=tmp_path / "work" / "raw")
+
+
+@pytest.mark.parametrize("target", [("POST", "http://example.invalid/login"), ("GET", "/logout")])
+def test_refuses_out_of_scope_or_denied_targets(browser, demo, tmp_path, target):
+    method, url = target
+    url = url if url.startswith("http") else demo.url(url)
+    with pytest.raises(ValueError, match="대상"):
+        run(browser, demo, tmp_path, targets=[(method, url)])
+
+
+def test_redirect_from_target_goes_back_through_the_guard(browser, demo, tmp_path):
+    def drive(page):
+        try:
+            page.goto(demo.url("/go?to=/logout"))
+        except PlaywrightError:
+            pass
+    run(browser, demo, tmp_path, item_id="SAFE-05-06-01", start_url=demo.url("/faq"),
+        targets=[("GET", demo.url("/go"))], driver=drive)
+    assert demo.writes() == []

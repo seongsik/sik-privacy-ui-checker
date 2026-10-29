@@ -19,9 +19,10 @@ import re
 import time
 from datetime import datetime, timezone
 from pathlib import Path
+from urllib.parse import urljoin
 
 from scripts.collect import scrub_har
-from scripts.guard import install_guard
+from scripts.guard import Guard, install_guard
 from scripts.session import new_context
 
 TAG = re.compile(r"<script.*?</script>|<style.*?</style>|<[^>]+>", re.S | re.I)
@@ -51,6 +52,11 @@ def run_active_test(browser, storage_state, intake: dict, menu_map: dict, *, ite
         "max_attempts": max_attempts, "attempts": 0, "over_limit_blocked": 0, "observations": [],
     }
 
+    checker = Guard(intake, menu_map)
+    for m, u in targets:
+        if not checker._in_scope(u) or checker.decide("GET", u, False) == "deny-pattern":
+            raise ValueError(f"시험 대상이 점검 범위 밖이거나 금지 목록에 걸린다: {m} {u}")
+
     ctx = new_context(browser, Path(storage_state) if storage_state else None,
                       record_har_path=str(har_tmp), record_har_content="embed")
     guard = install_guard(ctx, intake, menu_map)
@@ -65,7 +71,21 @@ def run_active_test(browser, storage_state, intake: dict, menu_map: dict, *, ite
             route.abort("blockedbyclient")
             return
         record["attempts"] += 1
-        resp = route.fetch()  # 승인 대상만 직접 보낸다(guard 를 거치지 않음)
+        # 승인 대상만 직접 보낸다. 리다이렉트는 따라가지 않는다. 브라우저가 이어서 따라가는 이동은 route 를
+        # 다시 거치지 않으므로, 이동할 곳을 여기서 guard 규칙으로 판단해 막는다.
+        resp = route.fetch(max_redirects=0)
+        location = resp.headers.get("location")
+        if location:
+            nxt = urljoin(req.url, location)
+            method = req.method if resp.status in (307, 308) else "GET"
+            reason = guard.decide(method, nxt, True)
+            if reason:
+                guard.blocked_log.append({"method": method, "url": nxt, "reason": f"redirect-{reason}", "ts": time.time()})
+                record["observations"].append({"attempt": record["attempts"], "method": req.method, "status": resp.status,
+                                               "text": f"리다이렉트 차단({reason}): {nxt}"})
+                route.fulfill(status=200, content_type="text/plain; charset=utf-8",
+                              body=f"점검 도구가 리다이렉트를 막았습니다({reason}): {nxt}")
+                return
         text = re.sub(r"\s+", " ", TAG.sub(" ", resp.text())).strip()
         record["observations"].append({"attempt": record["attempts"], "method": req.method,
                                        "status": resp.status, "text": text[:300]})
