@@ -243,10 +243,10 @@ Expected: 실패 0
 **검증:** `.venv/Scripts/python -m pytest -q tests/test_mask.py`
 Expected: 실패 0
 
-- [ ] 테스트 작성, 실패 확인
-- [ ] 구현
-- [ ] 검증 명령 통과
-- [ ] Commit (`Refs: REQ-010`)
+- [x] 테스트 작성, 실패 확인
+- [x] 구현
+- [x] 검증 명령 통과
+- [x] Commit (`Refs: REQ-010`)
 
 ### Task 12: 리포트 빌더 [REQ-011] [w=3]
 
