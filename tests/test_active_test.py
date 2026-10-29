@@ -121,3 +121,16 @@ def test_redirect_from_target_goes_back_through_the_guard(browser, demo, tmp_pat
     run(browser, demo, tmp_path, item_id="SAFE-05-06-01", start_url=demo.url("/faq"),
         targets=[("GET", demo.url("/go"))], driver=drive)
     assert demo.writes() == []
+
+
+def test_redirects_from_targets_are_never_followed(browser, demo, tmp_path):
+    # 금지되지 않은 곳으로의 리다이렉트도 브라우저에 3xx 로 넘기지 않는다(다음 이동은 새 요청으로 guard 를 거친다)
+    seen = {}
+
+    def drive(page):
+        resp = page.goto(demo.url("/go?to=/notice"))
+        seen["status"], seen["url"] = resp.status, page.url
+    record = run(browser, demo, tmp_path, item_id="SAFE-05-06-01", start_url=demo.url("/faq"),
+                 targets=[("GET", demo.url("/go"))], driver=drive)
+    assert seen["status"] == 200 and "/go" in seen["url"]
+    assert "/notice" in record["observations"][0]["text"]

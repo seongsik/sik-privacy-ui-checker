@@ -19,7 +19,6 @@ import re
 import time
 from datetime import datetime, timezone
 from pathlib import Path
-from urllib.parse import urljoin
 
 from scripts.collect import scrub_har
 from scripts.guard import Guard, install_guard
@@ -71,21 +70,16 @@ def run_active_test(browser, storage_state, intake: dict, menu_map: dict, *, ite
             route.abort("blockedbyclient")
             return
         record["attempts"] += 1
-        # 승인 대상만 직접 보낸다. 리다이렉트는 따라가지 않는다. 브라우저가 이어서 따라가는 이동은 route 를
-        # 다시 거치지 않으므로, 이동할 곳을 여기서 guard 규칙으로 판단해 막는다.
+        # 승인 대상만 직접 보낸다. 리다이렉트는 따라가지도, 3xx 로 브라우저에 넘기지도 않는다
+        # (fulfill 한 3xx 의 다음 이동은 route 를 거치지 않는다). 이동할 곳만 적은 화면으로 답한다.
         resp = route.fetch(max_redirects=0)
         location = resp.headers.get("location")
-        if location:
-            nxt = urljoin(req.url, location)
-            method = req.method if resp.status in (307, 308) else "GET"
-            reason = guard.decide(method, nxt, True)
-            if reason:
-                guard.blocked_log.append({"method": method, "url": nxt, "reason": f"redirect-{reason}", "ts": time.time()})
-                record["observations"].append({"attempt": record["attempts"], "method": req.method, "status": resp.status,
-                                               "text": f"리다이렉트 차단({reason}): {nxt}"})
-                route.fulfill(status=200, content_type="text/plain; charset=utf-8",
-                              body=f"점검 도구가 리다이렉트를 막았습니다({reason}): {nxt}")
-                return
+        if 300 <= resp.status < 400 and location is not None:
+            record["observations"].append({"attempt": record["attempts"], "method": req.method, "status": resp.status,
+                                           "text": f"리다이렉트(따라가지 않음): {location[:200]}"})
+            route.fulfill(status=200, content_type="text/plain; charset=utf-8",
+                          body=f"[점검 도구] 서버가 {resp.status} 로 다른 주소를 가리켰습니다(따라가지 않음): {location}")
+            return
         text = re.sub(r"\s+", " ", TAG.sub(" ", resp.text())).strip()
         record["observations"].append({"attempt": record["attempts"], "method": req.method,
                                        "status": resp.status, "text": text[:300]})
