@@ -316,7 +316,9 @@ def profile(h, q):  # 취약: 주민번호·카드번호 평문, JS 변수, 저�
 <label>주민등록번호 <input name="ssn" value="{ME['ssn']}" readonly></label>
 <input type="hidden" name="card" value="{ME['card']}">
 <button>저장</button></form>""", member=True,
-                  head=f"<script>window.__USER__={json.dumps(ME, ensure_ascii=False)};</script>"))
+                  head=f"<script>window.__USER__={json.dumps(ME, ensure_ascii=False)};"
+                       "addEventListener('load',()=>fetch('/api/me').then(r=>r.json()).then(u=>{"
+                       "document.querySelector('h1').dataset.user=u.name;}));</script>"))
 
 
 def orders(h, q):  # 안전 화면(목록은 마스킹)
