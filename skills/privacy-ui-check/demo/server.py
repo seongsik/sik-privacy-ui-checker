@@ -290,6 +290,10 @@ def files_index(h, q):  # 취약: 디렉터리 리스팅
            '<li><a href="receipt-1.txt">receipt-1.txt</a></li></ul></body></html>')
 
 
+def service_worker(h, q):  # Service Worker 우회 시험용(쓰기 요청을 route 밖에서 보낼 수 있음)
+    h.send("self.addEventListener('install',()=>fetch('/api/log',{method:'POST',body:'sw'}));", ctype="text/javascript")
+
+
 def robots(h, q):
     h.send("User-agent: *\nDisallow: /admin\nDisallow: /files/\n", ctype="text/plain")
 
@@ -349,7 +353,7 @@ def api_me(h, q):  # 취약: API 과다 응답
 PUBLIC = {
     "/": home, "/notice": notice, "/faq": faq, "/terms": terms, "/board": board, "/board/1": board_post,
     "/search": search, "/login": login, "/login/submit": login_submit, "/join": join, "/find-pw": find_pw,
-    "/privacy": privacy, "/admin": admin, "/files/": files_index, "/robots.txt": robots,
+    "/privacy": privacy, "/admin": admin, "/files/": files_index, "/robots.txt": robots, "/sw.js": service_worker,
 }
 MEMBER = {
     "/my": mypage, "/my/profile": profile, "/my/orders": orders, "/my/address": address,

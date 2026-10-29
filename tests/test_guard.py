@@ -3,7 +3,11 @@ import pytest
 from playwright.sync_api import Error as PlaywrightError
 from playwright.sync_api import sync_playwright
 
-from scripts.guard import install_guard
+from scripts.guard import Guard, install_guard
+from scripts.session import new_context
+
+INTAKE = {"target_url": "https://shop.example.com", "allowed_domains": ["shop.example.com"]}
+BASE = "https://shop.example.com"
 
 
 @pytest.fixture(scope="module")
@@ -14,8 +18,64 @@ def browser():
         b.close()
 
 
+@pytest.mark.parametrize("path", [
+    "/LOGOUT", "/user/logout.do", "/member/delete.jsp?id=1", "/%6Cogout", "/logout;jsessionid=abc",
+    "/board/Delete.action?no=3", "/MY/address/delete?id=1", "/a?ACTION=Delete",
+])
+def test_deny_patterns_survive_case_encoding_and_suffixes(path):
+    g = Guard(INTAKE, {"deny_patterns": ["/my/address/delete"]})
+    assert g.decide("GET", BASE + path, True) == "deny-pattern"
+
+
+@pytest.mark.parametrize("path", ["/my/withdraw", "/board/delete-policy-notice", "/catalog/removed-items"])
+def test_view_pages_with_action_words_are_not_denied(path):
+    assert Guard(INTAKE, {}).decide("GET", BASE + path, True) is None
+
+
+def test_deny_patterns_apply_to_out_of_scope_gets():
+    assert Guard(INTAKE, {}).decide("GET", "https://sso.example.net/logout", False) == "deny-pattern"
+
+
+def test_install_refuses_context_without_blocked_service_workers(browser):
+    ctx = browser.new_context()
+    with pytest.raises(ValueError, match="service_workers"):
+        install_guard(ctx, INTAKE, {})
+    ctx.close()
+
+
+REGISTER_SW = """async () => { try { await navigator.serviceWorker.register('/sw.js'); } catch (e) {}
+                     await new Promise(r => setTimeout(r, 300));
+                     return (await navigator.serviceWorker.getRegistrations()).length; }"""
+
+
+def test_inspection_context_blocks_service_worker_registration(browser, demo):
+    ctx = new_context(browser)
+    page = ctx.new_page()
+    page.goto(demo.url("/faq"))
+    assert page.evaluate(REGISTER_SW) == 0
+    ctx.close()
+
+
+def test_plain_context_would_register_service_worker(browser, demo):
+    # 위 테스트가 실제로 실패할 수 있음을 보이는 대조군
+    ctx = browser.new_context()
+    page = ctx.new_page()
+    page.goto(demo.url("/faq"))
+    assert page.evaluate(REGISTER_SW) == 1
+    ctx.close()
+
+
+def test_out_of_scope_iframe_navigation_is_blocked(browser, demo):
+    ctx, page, guard = make(browser, demo)
+    page.goto(demo.url("/faq"))
+    page.evaluate("() => { const f = document.createElement('iframe'); f.src = 'http://example.invalid/x'; document.body.append(f); }")
+    page.wait_for_timeout(500)
+    assert any(e["reason"] == "out-of-scope" for e in guard.blocked_log)
+    ctx.close()
+
+
 def make(browser, demo, **kw):
-    context = browser.new_context()
+    context = new_context(browser)
     page = context.new_page()
     page.goto(demo.login_url())  # 로그인은 guard 전에(설계서 7-2)
     intake = {"target_url": demo.base, "allowed_domains": ["127.0.0.1"]}

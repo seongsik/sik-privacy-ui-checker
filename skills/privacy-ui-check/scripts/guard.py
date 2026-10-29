@@ -13,16 +13,26 @@ from __future__ import annotations
 import re
 import time
 from contextlib import contextmanager
-from urllib.parse import urlparse
+from urllib.parse import unquote, urlparse
 
 SAFE_METHODS = ("GET", "HEAD", "OPTIONS")
 
 # 주소만 열어도 상태가 바뀌기 쉬운 GET. 화면 이름(/my/withdraw 같은 안내 화면)은 막지 않도록 동작 경로·파라미터만 본다.
+# 정규화(_normalize)한 소문자 경로에 적용한다. 서버 확장자(.do, .jsp …)가 붙은 동작 경로도 잡는다.
+_EXT = r"(\.(do|jsp|php|asp|aspx|action|json|html?))?"
 DEFAULT_DENY = (
-    r"(^|/)(logout|log-out|signout|sign-out)(/|$|\?)",
-    r"/(delete|remove|destroy|del)(/|$|\?)",
+    r"(^|/)(logout|log-out|signout|sign-out)" + _EXT + r"(/|$|\?)",
+    r"/(delete|remove|destroy|del)" + _EXT + r"(/|$|\?)",
     r"[?&](action|mode|cmd|act)=(delete|remove|del|withdraw|cancel|approve|send|logout)\b",
 )
+
+
+def _normalize(url: str) -> str:
+    """deny 비교용: 퍼센트 디코드, 경로 파라미터(;jsessionid=…) 제거, 소문자."""
+    parsed = urlparse(url)
+    path = unquote(parsed.path).split(";")[0]
+    query = unquote(parsed.query)
+    return (path + ("?" + query if query else "")).lower()
 
 
 class Guard:
@@ -30,7 +40,7 @@ class Guard:
         target = urlparse(intake["target_url"]).hostname
         self.allowed_domains = set(intake.get("allowed_domains") or [target])
         self.deny = [re.compile(p) for p in DEFAULT_DENY] + [
-            re.compile(re.escape(p)) for p in menu_map.get("deny_patterns", [])
+            re.compile(re.escape(_normalize(p))) for p in menu_map.get("deny_patterns", [])
         ]
         self.allow_post = [re.compile(p) for p in allow_post]
         self.temporary: list[tuple[str, str]] = []
@@ -52,11 +62,9 @@ class Guard:
         if is_navigation and not self._in_scope(url):
             return "out-of-scope"
         if method in SAFE_METHODS:
-            if self._in_scope(url):
-                parsed = urlparse(url)
-                target = parsed.path + ("?" + parsed.query if parsed.query else "")
-                if any(p.search(target) for p in self.deny):
-                    return "deny-pattern"
+            # 도메인 밖 GET(SSO 로그아웃 등)에도 금지 목록을 적용한다
+            if any(p.search(_normalize(url)) for p in self.deny):
+                return "deny-pattern"
             return None
         if method == "POST" and self._in_scope(url) and any(p.search(urlparse(url).path) for p in self.allow_post):
             return None
@@ -68,7 +76,7 @@ class Guard:
     # ── Playwright 연결 ──
     def _on_route(self, route):
         req = route.request
-        is_nav = req.is_navigation_request() and req.frame.parent_frame is None
+        is_nav = req.is_navigation_request()  # iframe 이동도 범위 검사(외부 iframe 안 쓰기 요청 차단)
         reason = self.decide(req.method, req.url, is_nav)
         if reason:
             self._log(self.blocked_log, req.method, req.url, reason)
@@ -95,6 +103,12 @@ class Guard:
 
 
 def install_guard(context, intake: dict, menu_map: dict, allow_post=()) -> Guard:
+    """context 는 session.new_context/open_context 로 만든 것이어야 한다(Service Worker 차단).
+    Service Worker 가 보내는 요청은 context.route 로 가로챌 수 없어 쓰기 차단을 우회하기 때문이다."""
+    from scripts.session import SW_BLOCKED_MARK
+
+    if not getattr(context, SW_BLOCKED_MARK, False):
+        raise ValueError("service_workers='block' 인 컨텍스트가 필요하다: session.new_context 로 만든다")
     guard = Guard(intake, menu_map, allow_post)
     context.route("**/*", guard._on_route)
     context.route_web_socket(re.compile(".*"), guard._on_websocket)
