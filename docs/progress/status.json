@@ -5,15 +5,15 @@
   "standard_version": "1.7.2",
   "requirements_baseline": "2026-10-27",
   "changes": {"approved": 0, "proposed": 0, "rejected": 0},
-  "overall": {"progress": 25.0, "tasks_done": 4, "tasks_total": 15, "weight_done": 8, "weight_total": 32, "untracked": 0},
+  "overall": {"progress": 31.2, "tasks_done": 5, "tasks_total": 15, "weight_done": 10, "weight_total": 32, "untracked": 0},
   "plans": [
-    {"file": "docs/plans/2026-10-27-privacy-ui-check.md", "title": "privacy-ui-check 스킬 구현 계획", "spec": "docs/specs/2026-10-27-privacy-ui-check.md", "approved": "seongsik 2026-10-27", "requirements": ["REQ-014", "REQ-001", "REQ-007", "REQ-011", "REQ-013", "REQ-006", "REQ-009", "REQ-004", "REQ-012", "REQ-002", "REQ-003", "REQ-005", "REQ-008", "REQ-010"], "tasks_done": 4, "tasks_total": 15, "weight_done": 8, "weight_total": 32, "progress": 25.0}
+    {"file": "docs/plans/2026-10-27-privacy-ui-check.md", "title": "privacy-ui-check 스킬 구현 계획", "spec": "docs/specs/2026-10-27-privacy-ui-check.md", "approved": "seongsik 2026-10-27", "requirements": ["REQ-014", "REQ-001", "REQ-007", "REQ-011", "REQ-013", "REQ-006", "REQ-009", "REQ-004", "REQ-012", "REQ-002", "REQ-003", "REQ-005", "REQ-008", "REQ-010"], "tasks_done": 5, "tasks_total": 15, "weight_done": 10, "weight_total": 32, "progress": 31.2}
   ],
   "requirements": [
     {"id": "REQ-001", "title": "점검 착수 기록", "priority": "상", "status": "승인", "progress": 50.0, "tasks_done": 1, "tasks_total": 2, "commits": 6, "plans": ["docs/plans/2026-10-27-privacy-ui-check.md"]},
     {"id": "REQ-002", "title": "격리 브라우저와 사용자 직접 로그인", "priority": "상", "status": "승인", "progress": 0.0, "tasks_done": 0, "tasks_total": 1, "commits": 4, "plans": ["docs/plans/2026-10-27-privacy-ui-check.md"]},
     {"id": "REQ-003", "title": "메뉴맵 확인과 커버리지", "priority": "상", "status": "승인", "progress": 0.0, "tasks_done": 0, "tasks_total": 1, "commits": 4, "plans": ["docs/plans/2026-10-27-privacy-ui-check.md"]},
-    {"id": "REQ-004", "title": "운영 데이터 수정 금지", "priority": "상", "status": "승인", "progress": 0.0, "tasks_done": 0, "tasks_total": 1, "commits": 4, "plans": ["docs/plans/2026-10-27-privacy-ui-check.md"]},
+    {"id": "REQ-004", "title": "운영 데이터 수정 금지", "priority": "상", "status": "승인", "progress": 100.0, "tasks_done": 1, "tasks_total": 1, "commits": 5, "plans": ["docs/plans/2026-10-27-privacy-ui-check.md"]},
     {"id": "REQ-005", "title": "화면 수집물과 원본 격리", "priority": "상", "status": "승인", "progress": 0.0, "tasks_done": 0, "tasks_total": 1, "commits": 4, "plans": ["docs/plans/2026-10-27-privacy-ui-check.md"]},
     {"id": "REQ-006", "title": "점검 기준 데이터", "priority": "상", "status": "승인", "progress": 100.0, "tasks_done": 1, "tasks_total": 1, "commits": 6, "plans": ["docs/plans/2026-10-27-privacy-ui-check.md"]},
     {"id": "REQ-007", "title": "판정과 위험도", "priority": "상", "status": "승인", "progress": 33.3, "tasks_done": 1, "tasks_total": 3, "commits": 6, "plans": ["docs/plans/2026-10-27-privacy-ui-check.md"]},
@@ -21,8 +21,8 @@
     {"id": "REQ-009", "title": "조치방안 제시", "priority": "상", "status": "승인", "progress": 50.0, "tasks_done": 1, "tasks_total": 2, "commits": 6, "plans": ["docs/plans/2026-10-27-privacy-ui-check.md"]},
     {"id": "REQ-010", "title": "캡처 가림과 번호 박스", "priority": "상", "status": "승인", "progress": 0.0, "tasks_done": 0, "tasks_total": 1, "commits": 4, "plans": ["docs/plans/2026-10-27-privacy-ui-check.md"]},
     {"id": "REQ-011", "title": "HTML 보안성 검토 리포트", "priority": "상", "status": "승인", "progress": 28.6, "tasks_done": 1, "tasks_total": 3, "commits": 6, "plans": ["docs/plans/2026-10-27-privacy-ui-check.md"]},
-    {"id": "REQ-012", "title": "사이트 부담 제한과 중단 조건", "priority": "상", "status": "승인", "progress": 0.0, "tasks_done": 0, "tasks_total": 3, "commits": 4, "plans": ["docs/plans/2026-10-27-privacy-ui-check.md"]},
+    {"id": "REQ-012", "title": "사이트 부담 제한과 중단 조건", "priority": "상", "status": "승인", "progress": 28.6, "tasks_done": 1, "tasks_total": 3, "commits": 5, "plans": ["docs/plans/2026-10-27-privacy-ui-check.md"]},
     {"id": "REQ-013", "title": "단계별 산출물과 재개", "priority": "중", "status": "승인", "progress": 40.0, "tasks_done": 1, "tasks_total": 2, "commits": 6, "plans": ["docs/plans/2026-10-27-privacy-ui-check.md"]},
-    {"id": "REQ-014", "title": "검증 체계", "priority": "상", "status": "승인", "progress": 44.4, "tasks_done": 2, "tasks_total": 4, "commits": 7, "plans": ["docs/plans/2026-10-27-privacy-ui-check.md"]}
+    {"id": "REQ-014", "title": "검증 체계", "priority": "상", "status": "승인", "progress": 44.4, "tasks_done": 2, "tasks_total": 4, "commits": 8, "plans": ["docs/plans/2026-10-27-privacy-ui-check.md"]}
   ]
 }

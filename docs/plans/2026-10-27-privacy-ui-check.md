@@ -144,10 +144,10 @@ Expected: 실패 0
 **검증:** `.venv/Scripts/python -m pytest -q tests/test_guard.py`
 Expected: 실패 0
 
-- [ ] 테스트 작성, 실패 확인
-- [ ] 구현
-- [ ] 검증 명령 통과
-- [ ] Commit (`Refs: REQ-004, REQ-012`)
+- [x] 테스트 작성, 실패 확인
+- [x] 구현
+- [x] 검증 명령 통과
+- [x] Commit (`Refs: REQ-004, REQ-012`)
 
 ### Task 6: 세션과 로그인 대기 [REQ-002] [w=1]
 
