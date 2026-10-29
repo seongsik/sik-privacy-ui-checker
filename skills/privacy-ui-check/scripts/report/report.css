@@ -1,0 +1,50 @@
+:root{--fg:#1f2430;--muted:#6b7280;--line:#e3e6eb;--bg:#fff;--side:#f6f7f9;--accent:#2f4b7c;
+--high:#d64545;--mid:#e08a1e;--low:#8a9099}
+*{box-sizing:border-box}
+body{margin:0;font:15px/1.6 "Malgun Gothic","Apple SD Gothic Neo","Noto Sans KR",sans-serif;color:var(--fg);background:var(--bg)}
+.layout{display:flex;min-height:100vh}
+.toc{width:300px;flex:none;background:var(--side);border-right:1px solid var(--line);padding:20px 12px;position:sticky;top:0;
+height:100vh;overflow-y:auto}
+.toc a{color:inherit;text-decoration:none;display:block;border-radius:6px}
+.toc-head{font-weight:700;padding:6px 10px;margin-top:6px}
+.toc-head.static{color:var(--muted);font-size:13px;margin-top:16px}
+.toc-menu{font-size:13px;color:var(--accent);font-weight:600;padding:8px 10px 2px}
+.toc-item{display:flex!important;gap:6px;align-items:baseline;padding:4px 10px 4px 18px;font-size:14px}
+.toc-item .no{color:var(--muted);font-size:12px;flex:none}
+.toc-item .t{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.toc a:hover,.toc a.active{background:#e7ecf5}
+main{flex:1;min-width:0;padding:32px 48px 64px;max-width:1200px}
+.page{display:none}.page.show{display:block}
+h1{font-size:26px;margin:4px 0}h2{font-size:18px;margin:28px 0 10px;padding-bottom:6px;border-bottom:2px solid var(--line)}
+.sub{color:var(--muted);margin:0 0 12px}.muted{color:var(--muted);font-size:13px}
+table{border-collapse:collapse;width:100%;margin:6px 0 10px}
+th,td{border:1px solid var(--line);padding:7px 10px;text-align:left;vertical-align:top}
+thead th{background:var(--side)}
+table.kv th{width:160px;background:var(--side);font-weight:600}
+td{word-break:break-all}
+#ov-list tbody tr{cursor:pointer}#ov-list tbody tr:hover{background:#f1f4fa}
+.badge{display:inline-block;min-width:26px;text-align:center;padding:1px 7px;border-radius:10px;color:#fff;font-size:12px;font-weight:700}
+.r-high{background:var(--high)}.r-mid{background:var(--mid)}.r-low{background:var(--low)}
+.stats{display:flex;gap:10px;flex-wrap:wrap;margin:8px 0}
+.stat{border:1px solid var(--line);border-radius:8px;padding:10px 16px;min-width:110px;background:#fff}
+.stat b{display:block;font-size:22px}.stat span{color:var(--muted);font-size:13px}
+.stat.r-high b{color:var(--high)}.stat.r-mid b{color:var(--mid)}.stat.r-low b{color:var(--low)}
+.stat.r-high,.stat.r-mid,.stat.r-low{background:#fff}
+.notes{color:var(--muted);font-size:13px}
+.detail .head{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+.detail .head h1{flex-basis:100%}.detail .head .no{color:var(--muted)}
+.verdict{font-weight:700}
+figure{margin:10px 0 18px;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+figure img{display:block;width:100%;height:auto;cursor:zoom-in}
+figcaption{font-size:12px;color:var(--muted);padding:6px 10px;background:var(--side)}
+.problems{list-style:none;padding:0}.problems li{margin:6px 0;display:flex;gap:8px}
+.problems .num{color:var(--high);font-weight:700;font-size:18px;line-height:1.2}
+.text{white-space:pre-wrap}
+.active{background:#fff7e8;border:1px solid #f1d39a;border-radius:6px;padding:8px 12px}
+.pager{display:flex;justify-content:space-between;margin-top:32px;padding-top:12px;border-top:1px solid var(--line)}
+.pager a{color:var(--accent);text-decoration:none;font-weight:600}
+#zoom{position:fixed;inset:0;background:rgba(0,0,0,.8);display:flex;align-items:center;justify-content:center;z-index:9;cursor:zoom-out}
+#zoom[hidden]{display:none}#zoom img{max-width:96vw;max-height:96vh}
+@media (max-width:900px){.layout{display:block}.toc{position:static;width:auto;height:auto}main{padding:20px 16px}}
+@media print{.toc,.pager,#zoom{display:none!important}.page{display:block!important}
+.detail{page-break-before:always}main{padding:0;max-width:none}figure img{cursor:default}}
