@@ -13,7 +13,7 @@ auth=none 메뉴는 로그인 없이, auth=user 메뉴는 저장한 세션으로
 429, WAF 차단 화면, CAPTCHA, 403 연속, 세션 만료를 만나면 멈추고(CollectStopped) 다음 실행 때 그 메뉴부터 이어 간다.
 
 사용: python -m scripts.collect --intake intake.json --menu-map menu_map.json --storage-state <밖>/session.json \
-        --raw-dir <밖>/raw --workdir <작업 폴더> [--only M03-02] [--allow-post '/api/.*/search$']
+        --raw-dir <밖>/raw --workdir <작업 폴더> [--only M03-02] [--allow-post '/api/.*/search$'] [--boxes boxes.json]
 """
 from __future__ import annotations
 
@@ -209,13 +209,15 @@ def main() -> None:
     ap.add_argument("--workdir", required=True, type=Path)
     ap.add_argument("--only", nargs="*")
     ap.add_argument("--allow-post", nargs="*", default=[], help="사용자가 확인한 조회성 POST 경로 정규식")
+    ap.add_argument("--boxes", type=Path, help="번호 박스를 달 요소 JSON {메뉴ID: [{n, selector, label}]}")
     ap.add_argument("--headed", action="store_true")
     a = ap.parse_args()
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=not a.headed)
         try:
             state = collect(browser, a.storage_state, load_intake(a.intake), load_menu_map(a.menu_map),
-                            a.raw_dir, a.workdir, only=a.only, allow_post=a.allow_post)
+                            a.raw_dir, a.workdir, only=a.only, allow_post=a.allow_post,
+                            boxes=json.loads(a.boxes.read_text(encoding="utf-8")) if a.boxes else None)
             print(f"수집 완료: {len(state['completed'])}개 메뉴 → {a.raw_dir}")
         except CollectStopped as e:
             print(f"수집 중단: {e.reason} ({e.menu_id}, {e.detail}). 원인을 해결한 뒤 같은 명령으로 이어서 실행하세요.")
