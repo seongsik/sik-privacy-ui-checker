@@ -33,6 +33,8 @@ MEASURE_PII = r"""() => {
   const pats = [['rrn', /\b\d{6}-[1-4]\d{6}\b/g], ['card', /\b\d{4}[- ]\d{4}[- ]\d{4}[- ]\d{4}\b/g],
                 ['mobile', /\b01[016789]-?\d{3,4}-?\d{4}\b/g], ['email', /[\w.+-]+@[\w-]+\.[\w.-]+/g]];
   const nameRe = /(^|_)(name|nm|receiver)($|_)|이름|성명|수령인|받는 ?분|고객명/i;
+  // 라벨 뒤에 흔히 오는 이름 아닌 말(없는, 입력, 변경 …)은 빼서 과잉 가림을 줄인다
+  const labelled = /(받는 ?분|수령인|이름|성명|고객명|작성자|신청인|담당자)\s*[:：]?\s*(?!(?:없는|없음|없이|있는|입력|변경|확인|수정|검색|등록|정보|항목|표시|필수|선택)(?![가-힣]))([가-힣]{2,4})(?![가-힣])/g;
   const out = [];
   const add = (r, kind) => { if (r.width > 0 && r.height > 0) out.push({x: Math.round(r.left + scrollX),
       y: Math.round(r.top + scrollY), w: Math.ceil(r.width), h: Math.ceil(r.height), kind}); };
@@ -48,6 +50,14 @@ MEASURE_PII = r"""() => {
         range.setStart(n, m.index); range.setEnd(n, m.index + m[0].length);
         for (const r of range.getClientRects()) add(r, kind);
       }
+    }
+    // 글 속 이름: '받는 분 김영희', '작성자: 박민수'처럼 이름 라벨 바로 뒤의 한글 2~4자
+    labelled.lastIndex = 0; let m;
+    while ((m = labelled.exec(n.data))) {
+      const start = m.index + m[0].length - m[2].length;
+      const range = document.createRange();
+      range.setStart(n, start); range.setEnd(n, start + m[2].length);
+      for (const r of range.getClientRects()) add(r, 'name');
     }
   }
   for (const el of document.querySelectorAll('input, textarea, select')) {

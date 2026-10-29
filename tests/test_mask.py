@@ -193,3 +193,16 @@ def test_render_shot_rejects_degenerate_or_offimage_rects(tmp_path, bad):
     (raw / "meta.json").write_text(json.dumps({"pii_rects": [bad], "box_rects": []}), encoding="utf-8")
     with pytest.raises(ValueError):
         mask.render_shot(raw, tmp_path / "img", "V-001_1")
+
+
+def test_measures_labelled_names_inside_free_text():
+    with sync_playwright() as p:
+        b = p.chromium.launch()
+        page = b.new_page()
+        page.set_content("<p>배송지 변경 부탁드립니다. 받는 분 김영희 010-9876-5432</p><p>작성자: 박민수</p>"
+                         "<p>이름 없는 공지입니다</p>")
+        rects = page.evaluate(mask.MEASURE_PII)
+        texts = page.evaluate("""() => { const t = document.body.innerText; return t; }""")
+        b.close()
+    names = [r for r in rects if r["kind"] == "name"]
+    assert len(names) == 2, (names, texts)
