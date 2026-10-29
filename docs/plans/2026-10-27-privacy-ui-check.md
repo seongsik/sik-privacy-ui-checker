@@ -260,10 +260,10 @@ Expected: 실패 0
 **검증:** `.venv/Scripts/python -m pytest -q tests/test_report.py`
 Expected: 실패 0
 
-- [ ] 테스트 작성, 실패 확인
-- [ ] 구현
-- [ ] 검증 명령 통과
-- [ ] Commit (`Refs: REQ-011`)
+- [x] 테스트 작성, 실패 확인
+- [x] 구현
+- [x] 검증 명령 통과
+- [x] Commit (`Refs: REQ-011`)
 
 ### Task 13: 리포트 검증기 [REQ-011, REQ-014] [w=2]
 
