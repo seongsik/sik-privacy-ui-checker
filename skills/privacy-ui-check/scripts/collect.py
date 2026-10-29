@@ -26,6 +26,7 @@ from pathlib import Path
 from urllib.parse import urlparse
 
 from scripts.guard import install_guard
+from scripts.mask import MEASURE_PII, measure_boxes
 from scripts.session import new_context
 
 ARTIFACTS = ("screenshot.png", "dom.html", "network.har", "cookies.json", "storage.json", "headers.json", "meta.json")
@@ -108,7 +109,9 @@ def _check(menu: dict, resp, page, forbidden_streak: int) -> tuple[str | None, i
 
 
 def collect(browser, storage_state: Path, intake: dict, menu_map: dict, raw_dir: Path, workdir: Path, *,
-            only: list[str] | None = None, allow_post=(), delay_s: float = 1.5) -> dict:
+            only: list[str] | None = None, allow_post=(), delay_s: float = 1.5,
+            boxes: dict[str, list[dict]] | None = None) -> dict:
+    """boxes: {메뉴ID: [{n, selector, label}]} — 번호 박스를 달 요소. 그 메뉴를 다시 수집할 때 좌표를 잰다."""
     raw_dir, workdir = Path(raw_dir), Path(workdir)
     if raw_dir.resolve().is_relative_to(workdir.resolve()):
         raise ValueError(f"원본 폴더는 작업 폴더 밖에 둔다: {raw_dir}")
@@ -163,6 +166,9 @@ def collect(browser, storage_state: Path, intake: dict, menu_map: dict, raw_dir:
             "menu": menu, "title": page.title(), "error": error,
             "accessible": bool(resp and resp.ok),
             "blocked": guard.blocked_log, "collected_at": datetime.now(timezone.utc).isoformat(),
+            # 가림·번호 박스 좌표(문서 기준 px): 스크린샷과 같은 순간에 잰다
+            "pii_rects": page.evaluate(MEASURE_PII),
+            "box_rects": measure_boxes(page, (boxes or {}).get(menu["id"], [])),
         })
         ctx.close()  # 여기서 HAR 이 써진다
         har = json.loads(har_tmp.read_text(encoding="utf-8"))
