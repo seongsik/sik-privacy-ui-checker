@@ -1,0 +1,30 @@
+{
+  "menus": [
+    {"id": "M01-01", "path": ["홈"], "url": "/", "status": "visit", "auth": "none"},
+    {"id": "M02-01", "path": ["공지사항"], "url": "/notice", "status": "visit", "auth": "none"},
+    {"id": "M03-01", "path": ["게시판"], "url": "/board", "status": "visit", "auth": "none"},
+    {"id": "M03-02", "path": ["게시판", "문의 1"], "url": "/board/1", "status": "visit", "auth": "none"},
+    {"id": "M03-03", "path": ["게시판", "문의 2"], "url": "/board/2", "status": "sample", "sample_of": "M03-02", "auth": "none"},
+    {"id": "M03-04", "path": ["게시판", "문의 3"], "url": "/board/3", "status": "sample", "sample_of": "M03-02", "auth": "none"},
+    {"id": "M04-01", "path": ["FAQ"], "url": "/faq", "status": "visit", "auth": "none"},
+    {"id": "M05-01", "path": ["주문조회"], "url": "/search", "status": "visit", "auth": "none"},
+    {"id": "M06-01", "path": ["마이페이지"], "url": "/my", "status": "visit", "auth": "user"},
+    {"id": "M06-02", "path": ["마이페이지", "회원정보 수정"], "url": "/my/profile", "status": "visit", "auth": "user"},
+    {"id": "M06-03", "path": ["마이페이지", "주문내역"], "url": "/my/orders", "status": "visit", "auth": "user"},
+    {"id": "M06-04", "path": ["마이페이지", "주문내역", "1001"], "url": "/my/orders/1001", "status": "visit", "auth": "user"},
+    {"id": "M06-05", "path": ["마이페이지", "주문내역", "1002"], "url": "/my/orders/1002", "status": "sample", "sample_of": "M06-04", "auth": "user"},
+    {"id": "M06-06", "path": ["마이페이지", "주문내역", "1003"], "url": "/my/orders/1003", "status": "sample", "sample_of": "M06-04", "auth": "user"},
+    {"id": "M06-07", "path": ["마이페이지", "배송지 관리"], "url": "/my/address", "status": "visit", "auth": "user"},
+    {"id": "M06-08", "path": ["마이페이지", "마케팅 수신 설정"], "url": "/my/settings", "status": "visit", "auth": "user"},
+    {"id": "M06-09", "path": ["마이페이지", "회원탈퇴"], "url": "/my/withdraw", "status": "visit", "auth": "user"},
+    {"id": "M07-01", "path": ["개인정보 보호정책"], "url": "/privacy", "status": "visit", "auth": "none"},
+    {"id": "M07-02", "path": ["이용약관"], "url": "/terms", "status": "visit", "auth": "none"},
+    {"id": "M07-03", "path": ["로그인"], "url": "/login", "status": "visit", "auth": "none"},
+    {"id": "M07-04", "path": ["회원가입"], "url": "/join", "status": "visit", "auth": "none"},
+    {"id": "M07-05", "path": ["비밀번호 찾기"], "url": "/find-pw", "status": "visit", "auth": "none"},
+    {"id": "M08-01", "path": ["로그아웃"], "url": "/logout", "status": "blocked", "reason": "상태 변경 링크(로그아웃)", "auth": "user"},
+    {"id": "M08-02", "path": ["마이페이지", "배송지 관리", "삭제"], "url": "/my/address/delete?id=1", "status": "blocked", "reason": "상태 변경 링크(삭제)", "auth": "user"}
+  ],
+  "deny_patterns": ["/logout", "/my/address/delete"],
+  "extra_probes": ["/admin", "/files/", "/robots.txt", "/api/me"]
+}
