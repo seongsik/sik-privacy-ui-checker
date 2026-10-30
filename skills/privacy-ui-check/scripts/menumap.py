@@ -3,7 +3,8 @@
 로그인된 점검 컨텍스트로 대상 사이트를 GET 으로만 돌며 링크를 읽는다. 버튼·폼은 누르지 않는다.
 - 첫 화면의 링크가 최상위 메뉴, 다른 화면에서 처음 나온 링크는 그 화면의 하위 메뉴가 된다(너비 우선).
 - 경로 숫자만 다른 링크(게시글·주문 상세)는 묶어서 첫 번째만 visit, 나머지는 sample 로 둔다.
-- 쓰기 차단의 금지 패턴에 걸리는 링크는 blocked(사유 포함)로 두고 deny_patterns 에 넣는다. 방문하지 않는다.
+- 쓰기 차단의 금지 규칙에 걸리거나 글자가 상태 변경을 뜻하는 링크(삭제·취소·로그아웃 …)는 blocked(사유 포함)로 두고
+  deny_patterns 에 넣는다. 방문하지 않는다. 착수 때 intake.deny_patterns 에 적은 경로도 수집 중에 막는다.
 - 파일 링크(첨부)는 메뉴가 아니라 attachments 로, robots.txt 의 Disallow 경로는 probes 로 돌려준다.
 결과는 사용자가 확인·수정한 뒤 menu_map.json 으로 확정한다.
 
@@ -21,6 +22,9 @@ from urllib.parse import urldefrag, urljoin, urlparse
 
 from scripts.guard import Guard, install_guard
 
+# 주소가 평범해도 글자가 상태 변경을 뜻하는 링크(쿠폰 삭제, 주문취소 …)는 방문하지 않고 blocked 로 둔다
+DENY_TEXT = re.compile(r"삭제|로그아웃|취소|승인|발송|결제|저장|초기화|해지|탈퇴하기|수신거부|logout|log out|sign out|delete|remove",
+                       re.I)
 FILE_EXT = re.compile(r"\.(txt|pdf|zip|sql|hwp|hwpx|docx?|xlsx?|pptx?|csv|jpe?g|png|gif|bak|tar|gz|7z)$", re.I)
 READ_LINKS = """() => [...document.querySelectorAll('a[href]')].map(a => ({
     href: a.href, text: (a.innerText || a.title || '').trim().replace(/\\s+/g, ' ') }))"""
@@ -75,7 +79,7 @@ def build_menu_map(context, intake: dict, *, delay_s: float = 1.0, max_pages: in
                 continue
             text = link["text"] or _rel(href)
             path = parent + [text]  # 첫 화면(parent=[])의 링크는 최상위 메뉴
-            if checker.decide("GET", href, True) == "deny-pattern":
+            if checker.decide("GET", href, True) == "deny-pattern" or DENY_TEXT.search(text):
                 blocked[href] = {"path": path, "text": text}
                 continue
             found[href] = {"path": path}

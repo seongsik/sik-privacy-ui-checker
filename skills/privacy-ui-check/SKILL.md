@@ -34,7 +34,8 @@ description: 운영 중인 웹서비스를 격리 브라우저에서 읽기 전�
 | `target_url` | 점검 대상 주소 |
 | `approval.approver` / `scope` / `period` | 점검 승인자, 범위(제외 영역 포함), 기간 |
 | `inspector`, `account_role` | 점검자, 점검에 쓸 테스트 계정의 역할 |
-| `allowed_domains` | 점검 범위 도메인(SSO 도메인 포함 여부) |
+| `allowed_domains` | 점검 범위 도메인. 하위 도메인까지 포함되므로(`corp.kr` 이면 `*.corp.kr` 전부) 상위 도메인 대신 정확한 호스트를 적는다 |
+| `deny_patterns` | 이 사이트에서 열기만 해도 상태가 바뀌는 주소(예: 자체 로그아웃·삭제 처리 경로). 메뉴맵 수집 중에도 막는다 |
 | `conditions.users_over_1m_daily` | 전년도 말 직전 3개월 일평균 이용자 100만 명 이상인가(인터넷망 차단) |
 | `conditions.subjects_over_100k` | 정보주체 10만 명 이상(대기업·중견·공공) 또는 100만 명 이상(중소)인가 |
 | `conditions.public_institution` / `conditions.public_system` | 공공기관인가, 공공시스템으로 지정됐는가 |
@@ -68,7 +69,9 @@ python -m scripts.collect --intake <작업 폴더>/intake.json --menu-map <작�
 ```
 - 메뉴마다 스크린샷·DOM·HAR(비밀번호·토큰 가림)·쿠키 속성·저장소·응답 헤더·meta(막힌 요청, 가림·박스 좌표)를 남긴다.
 - **종료코드 2(중단)** 이면 이유를 사용자에게 알린다: `rate-limited`·`waf`·`captcha`·`forbidden-repeated` 는 사이트 보호 장치다 — 재시도하지 말고 사용자 결정을 받는다. `session-expired` 는 1단계 로그인을 다시 하고 같은 명령으로 이어 간다.
-- 조회 화면이 "네트워크 오류"로 깨지면 meta.json 의 `blocked` 목록을 보여 주고, 사용자가 조회용이라고 확인한 POST 만 `--allow-post '<경로 정규식>'` 으로 허용해 그 메뉴를 다시 수집한다(`--only <메뉴ID>`).
+- 조회 화면이 "네트워크 오류"로 깨지면 meta.json 의 `blocked` 목록을 보여 주고, 사용자가 조회용이라고 확인한 POST 경로만 menu_map.json 의 `allow_post`(경로 전체 일치 정규식 목록)에 저장해 그 메뉴를 다시 수집한다(`--only <메뉴ID>`; 한 번만 시험할 땐 `--allow-post`).
+  허용한 POST 는 meta.json 의 `allowed` 에 본문 앞부분(비밀번호·토큰 가림)과 함께 남는다 — 같은 경로로 쓰기 요청이 나갔는지 확인한다.
+  한 주소로 조회·저장을 모두 처리하는 사이트(*.xp, 단일 .do 디스패처, /graphql)는 허용하지 말고 그 화면을 점검불가로 둔다.
 
 ### 4. 판정 — 자동 후보 + 검토
 ```bash

@@ -32,7 +32,8 @@ ORDERS = [
     {"id": 1002, "item": "마우스 패드", "receiver": "홍길동", "phone": "010-1234-5678"},
     {"id": 1003, "item": "USB 허브", "receiver": "홍길동", "phone": "010-1234-5678"},
 ]
-STATE_CHANGING_GET = ("/logout", "/my/address/delete")
+STATE_CHANGING_GET = ("/logout", "/my/address/delete", "/uat/uia/actionLogout.do", "/board/deleteArticle.do",
+                      "/order/cancel.do", "/my/coupon/")
 READONLY_POST = ("/api/orders/search",)
 WS_GUID = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
 
@@ -68,7 +69,7 @@ def layout(title: str, body: str, member: bool = False, head: str = "") -> str:
 nav.gnb ul,nav.lnb ul{{display:flex;gap:16px;list-style:none;padding:0;margin:0}}main{{padding:24px}}
 table{{border-collapse:collapse}}td,th{{border:1px solid #ccc;padding:6px 10px}}</style></head>
 <body><header><strong>데모몰</strong><nav class="gnb"><ul>{gnb}</ul></nav>
-<a href="/logout" class="logout">로그아웃</a></header>{lnb}<main><h1>{title}</h1>{body}</main>
+<a href="/logout" class="logout">로그아웃</a> <a href="/uat/uia/actionLogout.do">로그아웃(구)</a></header>{lnb}<main><h1>{title}</h1>{body}</main>
 <footer>{footer}</footer></body></html>"""
 
 
@@ -229,7 +230,8 @@ def terms(h, q):  # 안전 화면
 
 def board(h, q):
     rows = "".join(f'<tr><td>{i}</td><td><a href="/board/{i}">문의 {i}</a></td></tr>' for i in (1, 2, 3))
-    h.send(layout("게시판", f"<table><tr><th>번호</th><th>제목</th></tr>{rows}</table>",
+    h.send(layout("게시판", f"<table><tr><th>번호</th><th>제목</th></tr>{rows}</table>"
+                         '<a href="/board/deleteArticle.do?nttId=3">삭제</a>',
                   head="<script>addEventListener('load',()=>{const w=new WebSocket('ws://'+location.host+'/ws');"
                        "w.onopen=()=>w.send('board-view');});</script>"))
 
@@ -307,7 +309,8 @@ def robots(h, q):
 # ── 회원 화면 ──
 def mypage(h, q):  # 취약: 주석에 이메일, beacon(쓰기 함정)
     h.send(layout("마이페이지", f"<!-- debug user: {ME['email']} -->"
-                            f"<p>{ME['name'][0]}*{ME['name'][2]} 님, 반갑습니다.</p>", member=True,
+                            f"<p>{ME['name'][0]}*{ME['name'][2]} 님, 반갑습니다.</p>"
+                            '<a href="/my/coupon/9">쿠폰 삭제</a>', member=True,
                   head="<script>addEventListener('load',()=>{navigator.sendBeacon('/api/log','view=my');"
                        "localStorage.setItem('access_token','eyJhbGciOiJIUzI1NiJ9.demo.token');"
                        f"localStorage.setItem('user_email','{ME['email']}');}});</script>"))
@@ -328,7 +331,8 @@ def profile(h, q):  # 취약: 주민번호·카드번호 평문, JS 변수, 저�
 def orders(h, q):  # 안전 화면(목록은 마스킹)
     rows = "".join(f'<tr><td><a href="/my/orders/{o["id"]}">{o["id"]}</a></td><td>{o["item"]}</td>'
                    f'<td>{o["receiver"][0]}*{o["receiver"][2]}</td><td>{mask_phone(o["phone"])}</td></tr>' for o in ORDERS)
-    h.send(layout("주문내역", f"<table class='orders'><tr><th>주문번호</th><th>상품</th><th>받는 분</th><th>연락처</th></tr>{rows}</table>", member=True))
+    h.send(layout("주문내역", f"<table class='orders'><tr><th>주문번호</th><th>상품</th><th>받는 분</th><th>연락처</th></tr>{rows}</table>"
+                           '<a href="/order/cancel.do?no=1001">주문취소</a>', member=True))
 
 
 def order_detail(h, q):  # 취약: 목록과 달리 상세에서 마스킹하지 않음

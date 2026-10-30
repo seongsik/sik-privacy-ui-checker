@@ -13,18 +13,49 @@ from __future__ import annotations
 import re
 import time
 from contextlib import contextmanager
-from urllib.parse import unquote, urlparse
+from urllib.parse import parse_qsl, unquote, urlparse
 
 SAFE_METHODS = ("GET", "HEAD", "OPTIONS")
 
-# 주소만 열어도 상태가 바뀌기 쉬운 GET. 화면 이름(/my/withdraw 같은 안내 화면)은 막지 않도록 동작 경로·파라미터만 본다.
-# 정규화(_normalize)한 소문자 경로에 적용한다. 서버 확장자(.do, .jsp …)가 붙은 동작 경로도 잡는다.
-_EXT = r"(\.(do|jsp|php|asp|aspx|action|json|html?))?"
-DEFAULT_DENY = (
-    r"(^|/)(logout|log-out|signout|sign-out)" + _EXT + r"(/|$|\?)",
-    r"/(delete|remove|destroy|del)" + _EXT + r"(/|$|\?)",
-    r"[?&](action|mode|cmd|act)=(delete|remove|del|withdraw|cancel|approve|send|logout)\b",
-)
+# 주소만 열어도 상태가 바뀌기 쉬운 GET 을 낱말로 판단한다. 경로 조각·쿼리를 낱말로 쪼갠다
+# (camelCase, _, -, . 기준: actionLogout.do → action·logout, delete_ok → delete·ok, memberDelete → member·delete).
+#  - 파괴 낱말은 어디에 있든 막는다.
+#  - 변경 낱말은 같은 경로 조각에 화면 낱말(form·view·list …)이 없을 때만 막는다(updateForm.do 는 화면).
+#    /my/withdraw, /board/write 같은 안내·입력 화면 이름은 막지 않고, withdrawProc·writeProc 은 proc 으로 막는다.
+#  - 쿼리는 동작 키(mode·act·action·cmd·method)의 값에 파괴·변경 낱말이 있으면 막는다.
+DESTRUCTIVE = {"logout", "signout", "logoff", "delete", "del", "remove", "destroy", "cancel", "approve",
+               "clear", "reset", "send", "drop", "unsubscribe", "purge"}
+MUTATING = {"update", "insert", "save", "modify", "submit", "exec", "proc", "process", "ok"}
+VIEW = {"view", "form", "page", "list", "detail", "info", "guide", "notice", "main", "index", "search"}
+ACTION_KEYS = {"mode", "act", "action", "cmd", "method", "command"}
+_EXTS = {"do", "jsp", "php", "asp", "aspx", "action", "json", "html", "htm"}
+
+
+def _words(text: str) -> set[str]:
+    out = set()
+    for part in re.split(r"[^0-9A-Za-z]+", text):
+        out |= {w.lower() for w in re.findall(r"[A-Z]?[a-z]+|[A-Z]+(?![a-z])|\d+", part)}
+    return out
+
+
+def _segments(url: str) -> tuple[list[str], list[tuple[str, str]]]:
+    parsed = urlparse(url)
+    path = unquote(parsed.path).split(";")[0]
+    segs = [re.sub(r"\.(" + "|".join(_EXTS) + r")$", "", s, flags=re.I) for s in path.split("/") if s]
+    return segs, parse_qsl(unquote(parsed.query), keep_blank_values=True)
+
+
+def is_state_changing(url: str) -> bool:
+    segs, query = _segments(url)
+    for seg in segs:
+        words = _words(seg)
+        if words & DESTRUCTIVE or (words & MUTATING and not words & VIEW):
+            return True
+    for key, value in query:
+        vwords = _words(value)
+        if vwords & DESTRUCTIVE or (key.lower() in ACTION_KEYS and vwords & MUTATING):
+            return True
+    return False
 
 
 def _normalize(url: str) -> str:
@@ -39,10 +70,11 @@ class Guard:
     def __init__(self, intake: dict, menu_map: dict, allow_post=()):
         target = urlparse(intake["target_url"]).hostname
         self.allowed_domains = set(intake.get("allowed_domains") or [target])
-        self.deny = [re.compile(p) for p in DEFAULT_DENY] + [
-            re.compile(re.escape(_normalize(p))) for p in menu_map.get("deny_patterns", [])
-        ]
-        self.allow_post = [re.compile(p) for p in allow_post]
+        # 사용자가 정한 금지 경로: 착수 때 intake 에 적은 것(메뉴맵 수집 중에도 적용) + 확정 메뉴맵의 것
+        self.deny = [re.compile(re.escape(_normalize(p)))
+                     for p in list(intake.get("deny_patterns", [])) + list(menu_map.get("deny_patterns", []))]
+        # 조회성 POST: 경로 전체 일치(fullmatch). 저장한 목록(menu_map.allow_post)과 실행 인자를 합친다
+        self.allow_post = [re.compile(p) for p in list(menu_map.get("allow_post", [])) + list(allow_post)]
         self.temporary: list[tuple[str, str]] = []
         self.blocked_log: list[dict] = []
         self.allowed_log: list[dict] = []
@@ -61,14 +93,17 @@ class Guard:
             return None
         if is_navigation and not self._in_scope(url):
             return "out-of-scope"
+        denied = is_state_changing(url) or any(p.search(_normalize(url)) for p in self.deny)
         if method in SAFE_METHODS:
-            # 도메인 밖 GET(SSO 로그아웃 등)에도 금지 목록을 적용한다
-            if any(p.search(_normalize(url)) for p in self.deny):
-                return "deny-pattern"
-            return None
-        if method == "POST" and self._in_scope(url) and any(p.search(urlparse(url).path) for p in self.allow_post):
+            # 도메인 밖 GET(SSO 로그아웃 등)에도 금지 규칙을 적용한다
+            return "deny-pattern" if denied else None
+        if (method == "POST" and self._in_scope(url) and not denied
+                and any(p.fullmatch(urlparse(url).path) for p in self.allow_post)):
             return None
         return "write-method"
+
+    def is_allowed_post(self, method: str, url: str) -> bool:
+        return method == "POST" and any(p.fullmatch(urlparse(url).path) for p in self.allow_post)
 
     def _log(self, which: list, method: str, url: str, reason: str | None = None):
         which.append({"method": method, "url": url, "reason": reason, "ts": time.time()})
@@ -84,6 +119,11 @@ class Guard:
             return
         if self._temporarily_allowed(req.method, req.url):
             self._log(self.allowed_log, req.method, req.url, "temporary")
+        elif self.is_allowed_post(req.method, req.url):
+            # 허용한 조회성 POST 도 무엇이 나갔는지 남긴다(본문은 비밀번호·토큰을 가린 앞부분만)
+            from scripts.redact import scrub_text
+            self.allowed_log.append({"method": req.method, "url": req.url, "reason": "allow-post", "ts": time.time(),
+                                     "body": scrub_text(req.post_data or "")[:300]})
         route.continue_()
 
     def _on_websocket(self, ws):

@@ -1,38 +1,294 @@
 {
   "description": "데모몰 정답표. vulns 는 심어 둔 취약점, safe_pages 는 취약점이 없어야 하는 화면, traps 는 점검 중 서버에 닿으면 안 되는 쓰기 요청이다. auto=true 는 auto_checks 가 후보로 내야 하는 항목이다.",
   "vulns": [
-    {"key": "login-get-password", "menu_url": "/login", "item_ids": ["SAFE-07-01-02", "SAFE-07-01-01"], "verdict": "취약", "type": "관찰", "auto": true, "note": "로그인 폼이 GET이라 비밀번호가 URL 파라미터로 전송된다"},
-    {"key": "no-https", "menu_url": "COMMON", "item_ids": ["SAFE-07-04-01"], "verdict": "취약", "type": "관찰", "auto": true, "note": "전 화면이 평문 HTTP"},
-    {"key": "session-cookie-flags", "menu_url": "COMMON", "item_ids": ["SAFE-07-01-03"], "verdict": "취약", "type": "관찰", "auto": true, "note": "SID 쿠키에 HttpOnly·Secure 없음"},
-    {"key": "token-in-localstorage", "menu_url": "/my", "item_ids": ["SAFE-07-01-03"], "verdict": "권고", "type": "관찰", "auto": true, "note": "접근토큰과 이메일을 localStorage에 평문 보관(해석에 따른 판정)"},
-    {"key": "html-comment-email", "menu_url": "/my", "item_ids": ["SAFE-06-03-05"], "verdict": "취약", "type": "관찰", "auto": true, "note": "HTML 주석에 회원 이메일"},
-    {"key": "profile-ssn-plain", "menu_url": "/my/profile", "item_ids": ["SAFE-07-01-04", "SAFE-12-01-03"], "verdict": "취약", "type": "관찰", "auto": true, "note": "주민등록번호 전체가 입력칸 값, 카드번호가 숨은 필드, 전체 개인정보가 JS 변수에 있음"},
-    {"key": "api-me-overexposure", "menu_url": "/my/profile", "item_ids": ["SAFE-12-01-03"], "verdict": "취약", "type": "관찰", "auto": true, "note": "/api/me 가 주민번호·카드·계좌번호 전체를 응답"},
-    {"key": "order-detail-unmasked", "menu_url": "/my/orders/1001", "item_ids": ["SAFE-12-01-02"], "verdict": "권고", "type": "관찰", "auto": false, "note": "목록은 연락처를 마스킹하지만 상세는 전체 표시(마스킹 일관성)"},
-    {"key": "directory-listing", "menu_url": "/files/", "item_ids": ["SAFE-06-03-03"], "verdict": "취약", "type": "관찰", "auto": true, "note": "디렉터리 리스팅과 회원 백업 파일 노출"},
-    {"key": "admin-exposed", "menu_url": "/admin", "item_ids": ["SAFE-06-03-02", "SAFE-06-01-01"], "verdict": "취약", "type": "관찰", "auto": true, "note": "관리자 로그인 화면이 외부에서 열리고 robots.txt에 경로가 적혀 있음"},
-    {"key": "board-pii", "menu_url": "/board/1", "item_ids": ["SAFE-06-03-04"], "verdict": "취약", "type": "관찰", "auto": true, "note": "게시글 본문에 다른 회원 연락처·이메일"},
-    {"key": "join-bundled-consent", "menu_url": "/join", "item_ids": ["PIPA-22-01"], "verdict": "취약", "type": "관찰", "auto": false, "note": "필수·선택 동의를 한 체크박스로 묶음"},
-    {"key": "join-no-refusal-notice", "menu_url": "/join", "item_ids": ["PIPA-16-02", "PIPA-15-01"], "verdict": "취약", "type": "관찰", "auto": false, "note": "고지 사항과 거부 권리·불이익 고지가 없음"},
-    {"key": "join-marketing-prechecked", "menu_url": "/join", "item_ids": ["PIPA-22-02", "NET-50-01"], "verdict": "취약", "type": "관찰", "auto": true, "note": "마케팅 수신 동의가 미리 체크됨"},
-    {"key": "join-ssn-collected", "menu_url": "/join", "item_ids": ["PIPA-24B-02", "NET-23B-01"], "verdict": "취약", "type": "관찰", "auto": true, "note": "회원가입에서 주민등록번호 입력"},
-    {"key": "join-weak-password-rule", "menu_url": "/join", "item_ids": ["SAFE-05-05-01"], "verdict": "권고", "type": "관찰", "auto": false, "note": "비밀번호 4자 이상 안내(외부 참고값 미달)"},
-    {"key": "privacy-policy-name", "menu_url": "COMMON", "item_ids": ["PIPA-30-02"], "verdict": "권고", "type": "관찰", "auto": true, "note": "푸터 링크 이름이 '개인정보 처리방침'이 아님"},
-    {"key": "privacy-no-cpo", "menu_url": "/privacy", "item_ids": ["PIPA-31-02", "PIPA-30-03"], "verdict": "취약", "type": "관찰", "auto": false, "note": "개인정보 보호책임자·고충처리 연락처가 없음"},
-    {"key": "login-no-lockout", "menu_url": "/login", "item_ids": ["SAFE-05-06-01"], "verdict": "취약", "type": "능동", "auto": false, "note": "로그인 실패 횟수 제한 없음(능동 시험)"}
+    {
+      "key": "login-get-password",
+      "menu_url": "/login",
+      "item_ids": [
+        "SAFE-07-01-02",
+        "SAFE-07-01-01"
+      ],
+      "verdict": "취약",
+      "type": "관찰",
+      "auto": true,
+      "note": "로그인 폼이 GET이라 비밀번호가 URL 파라미터로 전송된다"
+    },
+    {
+      "key": "no-https",
+      "menu_url": "COMMON",
+      "item_ids": [
+        "SAFE-07-04-01"
+      ],
+      "verdict": "취약",
+      "type": "관찰",
+      "auto": true,
+      "note": "전 화면이 평문 HTTP"
+    },
+    {
+      "key": "session-cookie-flags",
+      "menu_url": "COMMON",
+      "item_ids": [
+        "SAFE-07-01-03"
+      ],
+      "verdict": "취약",
+      "type": "관찰",
+      "auto": true,
+      "note": "SID 쿠키에 HttpOnly·Secure 없음"
+    },
+    {
+      "key": "token-in-localstorage",
+      "menu_url": "/my",
+      "item_ids": [
+        "SAFE-07-01-03"
+      ],
+      "verdict": "권고",
+      "type": "관찰",
+      "auto": true,
+      "note": "접근토큰과 이메일을 localStorage에 평문 보관(해석에 따른 판정)"
+    },
+    {
+      "key": "html-comment-email",
+      "menu_url": "/my",
+      "item_ids": [
+        "SAFE-06-03-05"
+      ],
+      "verdict": "취약",
+      "type": "관찰",
+      "auto": true,
+      "note": "HTML 주석에 회원 이메일"
+    },
+    {
+      "key": "profile-ssn-plain",
+      "menu_url": "/my/profile",
+      "item_ids": [
+        "SAFE-07-01-04",
+        "SAFE-12-01-03"
+      ],
+      "verdict": "취약",
+      "type": "관찰",
+      "auto": true,
+      "note": "주민등록번호 전체가 입력칸 값, 카드번호가 숨은 필드, 전체 개인정보가 JS 변수에 있음"
+    },
+    {
+      "key": "api-me-overexposure",
+      "menu_url": "/my/profile",
+      "item_ids": [
+        "SAFE-12-01-03"
+      ],
+      "verdict": "취약",
+      "type": "관찰",
+      "auto": true,
+      "note": "/api/me 가 주민번호·카드·계좌번호 전체를 응답"
+    },
+    {
+      "key": "order-detail-unmasked",
+      "menu_url": "/my/orders/1001",
+      "item_ids": [
+        "SAFE-12-01-02"
+      ],
+      "verdict": "권고",
+      "type": "관찰",
+      "auto": false,
+      "note": "목록은 연락처를 마스킹하지만 상세는 전체 표시(마스킹 일관성)"
+    },
+    {
+      "key": "directory-listing",
+      "menu_url": "/files/",
+      "item_ids": [
+        "SAFE-06-03-03"
+      ],
+      "verdict": "취약",
+      "type": "관찰",
+      "auto": true,
+      "note": "디렉터리 리스팅과 회원 백업 파일 노출"
+    },
+    {
+      "key": "admin-exposed",
+      "menu_url": "/admin",
+      "item_ids": [
+        "SAFE-06-03-02",
+        "SAFE-06-01-01"
+      ],
+      "verdict": "취약",
+      "type": "관찰",
+      "auto": true,
+      "note": "관리자 로그인 화면이 외부에서 열리고 robots.txt에 경로가 적혀 있음"
+    },
+    {
+      "key": "board-pii",
+      "menu_url": "/board/1",
+      "item_ids": [
+        "SAFE-06-03-04"
+      ],
+      "verdict": "취약",
+      "type": "관찰",
+      "auto": true,
+      "note": "게시글 본문에 다른 회원 연락처·이메일"
+    },
+    {
+      "key": "join-bundled-consent",
+      "menu_url": "/join",
+      "item_ids": [
+        "PIPA-22-01"
+      ],
+      "verdict": "취약",
+      "type": "관찰",
+      "auto": false,
+      "note": "필수·선택 동의를 한 체크박스로 묶음"
+    },
+    {
+      "key": "join-no-refusal-notice",
+      "menu_url": "/join",
+      "item_ids": [
+        "PIPA-16-02",
+        "PIPA-15-01"
+      ],
+      "verdict": "취약",
+      "type": "관찰",
+      "auto": false,
+      "note": "고지 사항과 거부 권리·불이익 고지가 없음"
+    },
+    {
+      "key": "join-marketing-prechecked",
+      "menu_url": "/join",
+      "item_ids": [
+        "PIPA-22-02",
+        "NET-50-01"
+      ],
+      "verdict": "취약",
+      "type": "관찰",
+      "auto": true,
+      "note": "마케팅 수신 동의가 미리 체크됨"
+    },
+    {
+      "key": "join-ssn-collected",
+      "menu_url": "/join",
+      "item_ids": [
+        "PIPA-24B-02",
+        "NET-23B-01"
+      ],
+      "verdict": "취약",
+      "type": "관찰",
+      "auto": true,
+      "note": "회원가입에서 주민등록번호 입력"
+    },
+    {
+      "key": "join-weak-password-rule",
+      "menu_url": "/join",
+      "item_ids": [
+        "SAFE-05-05-01"
+      ],
+      "verdict": "권고",
+      "type": "관찰",
+      "auto": false,
+      "note": "비밀번호 4자 이상 안내(외부 참고값 미달)"
+    },
+    {
+      "key": "privacy-policy-name",
+      "menu_url": "COMMON",
+      "item_ids": [
+        "PIPA-30-02"
+      ],
+      "verdict": "권고",
+      "type": "관찰",
+      "auto": true,
+      "note": "푸터 링크 이름이 '개인정보 처리방침'이 아님"
+    },
+    {
+      "key": "privacy-no-cpo",
+      "menu_url": "/privacy",
+      "item_ids": [
+        "PIPA-31-02",
+        "PIPA-30-03"
+      ],
+      "verdict": "취약",
+      "type": "관찰",
+      "auto": false,
+      "note": "개인정보 보호책임자·고충처리 연락처가 없음"
+    },
+    {
+      "key": "login-no-lockout",
+      "menu_url": "/login",
+      "item_ids": [
+        "SAFE-05-06-01"
+      ],
+      "verdict": "취약",
+      "type": "능동",
+      "auto": false,
+      "note": "로그인 실패 횟수 제한 없음(능동 시험)"
+    }
   ],
-  "safe_pages": ["/notice", "/faq", "/terms", "/my/orders", "/board/2"],
-  "safe_active": [{"menu_url": "/admin", "item_ids": ["SAFE-05-06-02"], "note": "관리자 로그인은 5회 실패 후 잠금(양호)"}],
+  "safe_pages": [
+    "/notice",
+    "/faq",
+    "/terms",
+    "/my/orders",
+    "/board/2"
+  ],
+  "safe_active": [
+    {
+      "menu_url": "/admin",
+      "item_ids": [
+        "SAFE-05-06-02"
+      ],
+      "note": "관리자 로그인은 5회 실패 후 잠금(양호)"
+    }
+  ],
   "traps": [
-    {"method": "POST", "path": "/join"},
-    {"method": "POST", "path": "/find-pw"},
-    {"method": "POST", "path": "/my/profile"},
-    {"method": "POST", "path": "/my/settings"},
-    {"method": "POST", "path": "/my/withdraw"},
-    {"method": "POST", "path": "/api/log"},
-    {"method": "GET", "path": "/logout"},
-    {"method": "GET", "path": "/my/address/delete"},
-    {"method": "WS", "path": "/ws"}
+    {
+      "method": "POST",
+      "path": "/join"
+    },
+    {
+      "method": "POST",
+      "path": "/find-pw"
+    },
+    {
+      "method": "POST",
+      "path": "/my/profile"
+    },
+    {
+      "method": "POST",
+      "path": "/my/settings"
+    },
+    {
+      "method": "POST",
+      "path": "/my/withdraw"
+    },
+    {
+      "method": "POST",
+      "path": "/api/log"
+    },
+    {
+      "method": "GET",
+      "path": "/logout"
+    },
+    {
+      "method": "GET",
+      "path": "/my/address/delete"
+    },
+    {
+      "method": "WS",
+      "path": "/ws"
+    },
+    {
+      "method": "GET",
+      "path": "/uat/uia/actionLogout.do"
+    },
+    {
+      "method": "GET",
+      "path": "/board/deleteArticle.do"
+    },
+    {
+      "method": "GET",
+      "path": "/order/cancel.do"
+    },
+    {
+      "method": "GET",
+      "path": "/my/coupon/9"
+    }
   ],
-  "readonly_post": ["/api/orders/search"]
+  "readonly_post": [
+    "/api/orders/search"
+  ]
 }

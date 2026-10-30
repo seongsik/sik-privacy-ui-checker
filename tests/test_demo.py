@@ -64,13 +64,14 @@ def test_post_to_profile_is_logged_as_write(demo):
     assert any(w["method"] == "POST" and w["path"] == "/my/profile" for w in demo.writes())
 
 
-@pytest.mark.parametrize("path", ["/logout", "/my/address/delete?id=1"])
+@pytest.mark.parametrize("path", ["/logout", "/my/address/delete?id=1", "/uat/uia/actionLogout.do",
+                                  "/board/deleteArticle.do?nttId=3", "/order/cancel.do?no=1001", "/my/coupon/9"])
 def test_state_changing_get_is_logged(demo, path):
     try:
         get(demo.url(path), login_cookie(demo))
     except urllib.error.HTTPError:
         pass
-    assert any(w["path"] == path.split("?")[0] for w in demo.writes())
+    assert any(path.split("?")[0].startswith(w["path"]) or w["path"] == path.split("?")[0] for w in demo.writes())
 
 
 def test_readonly_search_post_is_not_a_write(demo):

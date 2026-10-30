@@ -26,23 +26,11 @@ from pathlib import Path
 from urllib.parse import urlparse
 
 from scripts.guard import install_guard
+from scripts.redact import scrub_har  # noqa: F401 - collect.scrub_har 로도 쓴다
 from scripts.mask import DOC_SIZE, FREEZE_CSS, MEASURE_PII, measure_boxes
 from scripts.session import new_context
 
 ARTIFACTS = ("screenshot.png", "dom.html", "network.har", "cookies.json", "storage.json", "headers.json", "meta.json")
-# 가릴 이름(파라미터·JSON 키·폼 필드):
-#  - 비밀번호 계열: password·passwd·pwd 포함(j_password, userPassword, password_confirm, pwd2), 단어로 쓰인 pw, pass 단독
-#  - 인증 값 계열: token(access_token 등), secret, 세션 ID, API 키, OTP
-# passport_no, keyword, author 같은 이름은 잡지 않는다.
-SECRET_NAME = re.compile(
-    r"(password|passwd|pwd|비밀번호|token|secret|sessid|session_?id|jsessionid|api[_\-]?key)"
-    r"|(^|[_\-.])pw\d*($|[_\-.])|^pass$|^otp$|^sid$", re.I)
-# 가릴 헤더: 쿠키·인증 헤더와 이름에 token·auth·session·secret·api-key 가 들어간 헤더
-SECRET_HEADER = re.compile(r"cookie|authorization|token|auth|session|secret|api-?key", re.I)
-_PATH_SESSION = re.compile(r"(;jsessionid=)[^?#&;\s\"'\\]*", re.I)
-_PAIR = re.compile(r"((?:^|[?&\s\"'])([\w.\-]+)=)([^&#\s\"'\\]*)")
-_JSON = re.compile(r'("([\w.\-]+)"\s*:\s*")((?:[^"\\]|\\.)*)(")')
-_MULTIPART = re.compile(r'(name="([^"]+)"\r?\n(?:[^\r\n]+\r?\n)*\r?\n)([^\r\n]*)')
 WAF_RE = re.compile(r"blocked by waf|web application firewall|request blocked|access denied by security policy", re.I)
 CAPTCHA_RE = re.compile(r"captcha|recaptcha|hcaptcha|자동입력 ?방지", re.I)
 READ_STORAGE = """() => { const d = s => Object.fromEntries(Object.keys(s).map(k => [k, s.getItem(k)]));
@@ -53,32 +41,6 @@ class CollectStopped(RuntimeError):
     def __init__(self, reason: str, menu_id: str, detail: str = ""):
         super().__init__(f"수집 중단({reason}) at {menu_id}: {detail}")
         self.reason, self.menu_id, self.detail = reason, menu_id, detail
-
-
-def _scrub_text(text: str) -> str:
-    def mask(m):
-        return m.group(1) + "***" + (m.group(4) if m.re is _JSON else "") if SECRET_NAME.search(m.group(2)) else m.group(0)
-    for pattern in (_PAIR, _JSON, _MULTIPART):
-        text = pattern.sub(mask, text)
-    return _PATH_SESSION.sub(r"\1***", text)
-
-
-def scrub_har(node, _list_of: str = ""):
-    """HAR(dict)의 비밀번호·인증 값, 쿠키 값, 인증 헤더 값을 *** 로 바꾼다.
-    name/value 쌍(쿠키·헤더·쿼리·폼), URL(;jsessionid= 포함)·urlencoded·JSON·multipart 본문 문자열을 모두 본다."""
-    if isinstance(node, dict):
-        out = {k: scrub_har(v, k) for k, v in node.items()}
-        name = out.get("name")
-        if isinstance(name, str) and "value" in out and (
-                _list_of == "cookies" or SECRET_NAME.search(name)
-                or (_list_of == "headers" and SECRET_HEADER.search(name))):
-            out["value"] = "***"
-        return out
-    if isinstance(node, list):
-        return [scrub_har(v, _list_of) for v in node]
-    if isinstance(node, str):
-        return _scrub_text(node)
-    return node
 
 
 def _dump(path: Path, data) -> None:
@@ -180,7 +142,8 @@ def collect(browser, storage_state: Path, intake: dict, menu_map: dict, raw_dir:
         _dump(out / "meta.json", {
             "menu": menu, "title": page.title(), "error": error,
             "accessible": bool(resp and resp.ok),
-            "blocked": guard.blocked_log, "collected_at": datetime.now(timezone.utc).isoformat(),
+            "blocked": guard.blocked_log, "allowed": guard.allowed_log,
+            "collected_at": datetime.now(timezone.utc).isoformat(),
             # 가림·번호 박스 좌표(문서 기준 px). rects_stable=False 면 mask 가 이미지를 만들지 않는다
             "pii_rects": pii_rects, "box_rects": box_rects, "rects_stable": stable,
         })

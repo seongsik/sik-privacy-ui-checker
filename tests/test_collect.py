@@ -68,7 +68,7 @@ def test_storage_and_blocked_requests_are_recorded(browser, storage, demo, tmp_p
 
 
 def test_har_has_no_password_values(browser, storage, demo, tmp_path):
-    raw = run(browser, storage, demo, [menu("M1", demo.login_url("/faq"))], tmp_path)
+    raw = run(browser, storage, demo, [menu("M1", demo.url("/faq?id=hong&pw=demo-pass"))], tmp_path)
     har = (raw / "M1" / "network.har").read_text(encoding="utf-8")
     assert "demo-pass" not in har
     assert "pw=***" in har

@@ -27,7 +27,8 @@ def test_deny_patterns_survive_case_encoding_and_suffixes(path):
     assert g.decide("GET", BASE + path, True) == "deny-pattern"
 
 
-@pytest.mark.parametrize("path", ["/my/withdraw", "/board/delete-policy-notice", "/catalog/removed-items"])
+@pytest.mark.parametrize("path", ["/my/withdraw", "/catalog/removed-items", "/member/updateForm.do",
+                                  "/board/writeForm.do", "/model/list.do", "/board/list.do?searchKeyword=kim"])
 def test_view_pages_with_action_words_are_not_denied(path):
     assert Guard(INTAKE, {}).decide("GET", BASE + path, True) is None
 
@@ -197,4 +198,35 @@ def test_redirect_trap_writes_without_guard(browser, demo):
     page = ctx.new_page()
     page.goto(demo.url("/go?to=/logout"))
     assert any(w["path"] == "/logout" for w in demo.writes())
+    ctx.close()
+
+
+@pytest.mark.parametrize("path", [
+    "/uat/uia/actionLogout.do", "/member/logoutProc.do", "/board/deleteArticle.do?id=3", "/bbs/delete_ok.php?no=1",
+    "/order/cancel.do?no=1", "/mypage/withdrawProc.do", "/cart/clear", "/a?mode=del_ok", "/a?act=delete_ok",
+    "/mail/sendMail.do", "/member/updateProc.do", "/board/insertArticle.do", "/member/memberDelete.jsp",
+])
+def test_legacy_style_action_urls_are_denied(path):
+    assert Guard(INTAKE, {}).decide("GET", BASE + path, True) == "deny-pattern"
+
+
+def test_intake_deny_patterns_apply_before_menu_map_exists():
+    g = Guard(dict(INTAKE, deny_patterns=["/custom/zap"]), {})
+    assert g.decide("GET", BASE + "/custom/zap?x=1", True) == "deny-pattern"
+
+
+def test_allow_post_is_full_match_and_still_deny_checked():
+    g = Guard(INTAKE, {}, allow_post=[r"/api/orders/search", r"/api/.*"])
+    assert g.decide("POST", BASE + "/api/orders/search", False) is None
+    assert g.decide("POST", BASE + "/api/orders/search/x", False) is None  # 두 번째 패턴 /api/.* 에 맞음
+    assert g.decide("POST", BASE + "/api/member/delete", False) == "write-method"
+    g2 = Guard(INTAKE, {}, allow_post=[r"/api/orders/search"])
+    assert g2.decide("POST", BASE + "/api/orders/searchAndDelete", False) == "write-method"
+
+
+def test_allowed_readonly_posts_are_logged(browser, demo):
+    ctx, page, guard = make(browser, demo, allow_post=[r"/api/orders/search"])
+    page.goto(demo.url("/search"))
+    page.wait_for_selector("table.orders tr")
+    assert any(e["method"] == "POST" and e["reason"] == "allow-post" for e in guard.allowed_log)
     ctx.close()
