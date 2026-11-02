@@ -117,7 +117,7 @@ def test_cdp_url_must_be_local():
         session.launch_browser(p, "cdp", cdp_url="http://10.0.0.5:9222")
 
 
-@pytest.mark.parametrize("bad", ["http://127.0.0.1@evil.example:9222", "http://127.0.0.1:9222\@evil", "http://127.0.0.1 :9222",
+@pytest.mark.parametrize("bad", ["http://127.0.0.1@evil.example:9222", r"http://127.0.0.1:9222\@evil", "http://127.0.0.1 :9222",
                                  "file://127.0.0.1/x", "http://127.0.0.1:notaport"])
 def test_cdp_url_rejects_tricky_forms(bad):
     p = _FakePlaywright()
