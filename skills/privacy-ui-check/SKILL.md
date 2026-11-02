@@ -22,6 +22,8 @@ description: 운영 중인 웹서비스를 격리 브라우저에서 읽기 전�
   파이썬은 의존성을 설치한 환경을 쓴다. 개발 저장소(sik-privacy-ui-checker)에서 연결해 쓰는 경우 `<저장소>\.venv\Scripts\python.exe`.
 - **화면이 뜨는 단계(Chromium 설치, 1단계 로그인, 5단계 능동 시험)와 점검 대상에 접속하는 단계는 사용자의 터미널에서 실행한다.**
   Claude 의 명령 실행 환경이 격리(sandbox)돼 있으면 창을 띄우지 못하거나, 거기서 설치한 Chromium·띄운 서버가 사용자 쪽에서 보이지 않는다.
+- 모든 브라우저 명령은 `--browser chrome` 으로 **PC 에 설치된 정식 Chrome** 을 새 격리 프로필로 띄울 수 있다(기본 `chromium`).
+  사내 보안 프로그램이 Playwright 가 내려받은 Chromium 의 접속을 막을 때(예: `ERR_FILE_NOT_FOUND`) 쓴다. 쓰기 차단·가림은 그대로 동작한다.
 - 폴더 두 개를 정한다:
   - **작업 폴더** `<사이트>_<날짜>/` — intake.json, menu_map.json, findings.json, img/, 리포트(배포 대상)
   - **원본 폴더** — 작업 폴더 **밖**(예: `<작업 폴더>_raw/`). 세션 파일, raw/, preview/, evidence/ 를 여기에 둔다.
@@ -49,7 +51,7 @@ description: 운영 중인 웹서비스를 격리 브라우저에서 읽기 전�
 ### 1. 로그인 — 사용자가 직접
 ```bash
 python -m scripts.session --url <대상> --login-wait selector:<로그인 뒤에만 보이는 요소> \
-  --storage-state <원본 폴더>/session.json --workdir <작업 폴더>
+  --storage-state <원본 폴더>/session.json --workdir <작업 폴더> [--browser chrome]
 ```
 - 열린 창에서 사용자가 로그인한다. 로그인 단계에는 쓰기 차단·HAR 기록이 꺼져 있다.
 - **로그인 뒤 처음 도착하는 화면은 쓰기 요청(로그 전송 등)이 없는 단순한 화면이 되도록 안내한다**(차단이 켜지기 전이다).

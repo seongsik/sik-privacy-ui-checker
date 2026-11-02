@@ -28,7 +28,7 @@ from urllib.parse import urlparse
 from scripts.guard import install_guard, settle
 from scripts.redact import scrub_har  # noqa: F401 - collect.scrub_har 로도 쓴다
 from scripts.mask import DOC_SIZE, FREEZE_CSS, find_nondom, measure_boxes, measure_pii
-from scripts.session import new_context, private_dir
+from scripts.session import add_browser_option, launch_browser, new_context, private_dir
 
 ARTIFACTS = ("screenshot.png", "dom.html", "network.har", "cookies.json", "storage.json", "headers.json", "meta.json")
 WAF_RE = re.compile(r"blocked by waf|web application firewall|request blocked|access denied by security policy", re.I)
@@ -204,9 +204,10 @@ def main() -> None:
     ap.add_argument("--allow-post", nargs="*", default=[], help="사용자가 확인한 조회성 POST 경로 정규식")
     ap.add_argument("--boxes", type=Path, help="번호 박스를 달 요소 JSON {메뉴ID: [{n, selector, label}]}")
     ap.add_argument("--headed", action="store_true")
+    add_browser_option(ap)
     a = ap.parse_args()
     with sync_playwright() as p:
-        browser = p.chromium.launch(headless=not a.headed)
+        browser = launch_browser(p, a.browser, headless=not a.headed)
         try:
             state = collect(browser, a.storage_state, load_intake(a.intake), load_menu_map(a.menu_map),
                             a.raw_dir, a.workdir, only=a.only, allow_post=a.allow_post,

@@ -145,17 +145,18 @@ def main() -> None:
     from playwright.sync_api import sync_playwright
 
     from scripts.models import load_intake
-    from scripts.session import open_context
+    from scripts.session import add_browser_option, launch_browser, open_context
 
     ap = argparse.ArgumentParser(description="메뉴맵 초안을 만든다(읽기 전용)")
     ap.add_argument("--intake", required=True, type=Path)
     ap.add_argument("--storage-state", required=True, type=Path)
     ap.add_argument("--out", required=True, type=Path)
     ap.add_argument("--headed", action="store_true")
+    add_browser_option(ap)
     a = ap.parse_args()
     intake = load_intake(a.intake)
     with sync_playwright() as p:
-        browser = p.chromium.launch(headless=not a.headed)
+        browser = launch_browser(p, a.browser, headless=not a.headed)
         data = build_menu_map(open_context(browser, a.storage_state), intake)
         browser.close()
     a.out.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")

@@ -15,16 +15,18 @@ from pathlib import Path
 
 from playwright.sync_api import sync_playwright
 
+from scripts.session import add_browser_option, launch_browser
+
 VISIBLE = "els => els.filter(e => e.offsetParent !== null).map(e => e.id)"
 BROKEN_IMAGES = "imgs => imgs.filter(i => !(i.complete && i.naturalWidth > 0)).length"
 
 
-def verify_report(html_path: Path, out_dir: Path) -> tuple[int, list[str]]:
+def verify_report(html_path: Path, out_dir: Path, browser_name: str = "chromium") -> tuple[int, list[str]]:
     html_path, out_dir = Path(html_path), Path(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
     problems: list[str] = []
     with sync_playwright() as p:
-        browser = p.chromium.launch()
+        browser = launch_browser(p, browser_name)
         page = browser.new_page(viewport={"width": 1440, "height": 900})
         page.on("console", lambda m: m.type == "error" and problems.append(f"콘솔 오류: {m.text}"))
         page.on("pageerror", lambda err: problems.append(f"페이지 오류: {err}"))
@@ -104,8 +106,9 @@ def main() -> None:
     ap = argparse.ArgumentParser(description="보안성 검토 리포트를 브라우저로 검증하고 증거 png 를 남긴다")
     ap.add_argument("--html", required=True, type=Path)
     ap.add_argument("--out-dir", required=True, type=Path)
+    add_browser_option(ap)
     a = ap.parse_args()
-    code, problems = verify_report(a.html, a.out_dir)
+    code, problems = verify_report(a.html, a.out_dir, a.browser)
     for p in problems:
         print(f"[문제] {p}")
     print("통과 — 증거 png 를 직접 열어 확인하세요: " + str(a.out_dir) if code == 0 else f"실패: {len(problems)}건")

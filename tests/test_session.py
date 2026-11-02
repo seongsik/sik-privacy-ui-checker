@@ -68,3 +68,36 @@ def test_session_file_is_owner_only(tmp_path, demo):
     session.run_login(demo.base, "url:/faq", state, tmp_path / "w", headless=True, start_url=demo.login_url())
     assert state.stat().st_mode & 0o777 == 0o600
     assert state.parent.stat().st_mode & 0o777 == 0o700
+
+
+class _FakeChromium:
+    def __init__(self):
+        self.calls = []
+
+    def launch(self, **kw):
+        self.calls.append(kw)
+        return "browser"
+
+
+class _FakePlaywright:
+    def __init__(self):
+        self.chromium = _FakeChromium()
+
+
+@pytest.mark.parametrize("name,channel", [("chromium", None), ("chrome", "chrome")])
+def test_launch_browser_selects_installed_chrome_channel(name, channel):
+    p = _FakePlaywright()
+    session.launch_browser(p, name, headless=False)
+    assert p.chromium.calls == [{"headless": False, **({"channel": channel} if channel else {})}]
+
+
+def test_launch_browser_rejects_unknown_name():
+    with pytest.raises(ValueError, match="chrome"):
+        session.launch_browser(_FakePlaywright(), "firefox")
+
+
+@pytest.mark.parametrize("module", ["session", "menumap", "collect", "active_test", "verify_report"])
+def test_every_cli_offers_browser_option(module):
+    from pathlib import Path
+    src = (Path(session.__file__).parent / f"{module}.py").read_text(encoding="utf-8")
+    assert ('"--browser"' in src or "add_browser_option(ap)" in src) and "chromium.launch(" not in src.replace("p.chromium.launch(**", "")

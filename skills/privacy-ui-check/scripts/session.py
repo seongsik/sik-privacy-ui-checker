@@ -51,6 +51,25 @@ def _check_outside(storage_state: Path, workdir: Path) -> None:
         raise ValueError(f"세션 파일은 작업 폴더 밖에 둔다: {storage_state}")
 
 
+BROWSERS = ("chromium", "chrome")
+
+
+def launch_browser(p, name: str = "chromium", *, headless: bool = True):
+    """점검용 브라우저를 띄운다. chromium = Playwright 가 내려받은 Chromium, chrome = PC 에 설치된 정식 Chrome
+    (새 격리 프로필로 뜬다. 보안 프로그램이 테스트용 Chromium 만 막는 환경에서 쓴다)."""
+    if name not in BROWSERS:
+        raise ValueError(f"브라우저는 {BROWSERS} 중 하나: {name}")
+    kw = {"headless": headless}
+    if name == "chrome":
+        kw["channel"] = "chrome"
+    return p.chromium.launch(**kw)
+
+
+def add_browser_option(ap) -> None:
+    ap.add_argument("--browser", choices=BROWSERS, default="chromium",
+                    help="chrome 이면 PC 에 설치된 Chrome 을 새 격리 프로필로 띄운다")
+
+
 def new_context(browser, storage_state: Path | None = None, **options):
     """점검용 컨텍스트. Service Worker 는 막는다(그 요청은 route 로 가로챌 수 없어 쓰기 차단을 우회한다).
     options 는 HAR 기록 같은 Playwright 컨텍스트 옵션을 더할 때 쓴다."""
@@ -71,13 +90,14 @@ def open_context(browser, storage_state: Path):
 
 
 def run_login(target_url: str, login_wait: str, storage_state: Path, workdir: Path, *,
-              headless: bool = False, timeout_ms: int = 600_000, start_url: str | None = None) -> Path:
+              headless: bool = False, timeout_ms: int = 600_000, start_url: str | None = None,
+              browser_name: str = "chromium") -> Path:
     """사용자가 로그인할 때까지 기다렸다가 세션을 저장한다. 시간 안에 끝나지 않으면 TimeoutError."""
     kind, value = _parse_condition(login_wait)
     storage_state, workdir = Path(storage_state), Path(workdir)
     _check_outside(storage_state, workdir)
     with sync_playwright() as p:
-        browser = p.chromium.launch(headless=headless)
+        browser = launch_browser(p, browser_name, headless=headless)
         try:
             ctx = new_context(browser)
             page = ctx.new_page()
@@ -102,9 +122,11 @@ def main() -> None:
     ap.add_argument("--storage-state", required=True, type=Path, help="작업 폴더 밖 경로")
     ap.add_argument("--workdir", required=True, type=Path)
     ap.add_argument("--timeout", type=int, default=600, help="초")
+    add_browser_option(ap)
     a = ap.parse_args()
     print("열린 브라우저 창에서 직접 로그인해 주세요. 아이디·비밀번호는 채팅이나 파일에 적지 않습니다.")
-    path = run_login(a.url, a.login_wait, a.storage_state, a.workdir, timeout_ms=a.timeout * 1000)
+    path = run_login(a.url, a.login_wait, a.storage_state, a.workdir, timeout_ms=a.timeout * 1000,
+                     browser_name=a.browser)
     print(f"세션 저장: {path} (로그인 쿠키가 들어 있습니다. 점검이 끝나면 삭제하세요.)")
 
 

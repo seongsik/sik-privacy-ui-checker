@@ -22,7 +22,7 @@ from pathlib import Path
 
 from scripts.redact import scrub_har, scrub_text
 from scripts.guard import Guard, install_guard, is_destructive
-from scripts.session import new_context, private_dir
+from scripts.session import add_browser_option, launch_browser, new_context, private_dir
 
 TAG = re.compile(r"<script.*?</script>|<style.*?</style>|<[^>]+>", re.S | re.I)
 
@@ -158,9 +158,10 @@ def main() -> None:
     ap.add_argument("--done-text")
     ap.add_argument("--raw-dir", required=True, type=Path)
     ap.add_argument("--workdir", required=True, type=Path)
+    add_browser_option(ap)
     a = ap.parse_args()
     with sync_playwright() as p:
-        browser = p.chromium.launch(headless=False)
+        browser = launch_browser(p, a.browser, headless=False)
         record = run_active_test(
             browser, a.storage_state, load_intake(a.intake), load_menu_map(a.menu_map), item_id=a.item,
             approval={"text": a.approval, "approved_by": a.approved_by}, start_url=a.start_url,
