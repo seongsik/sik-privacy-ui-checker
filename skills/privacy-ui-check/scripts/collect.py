@@ -207,7 +207,7 @@ def main() -> None:
     add_browser_option(ap)
     a = ap.parse_args()
     with sync_playwright() as p:
-        browser = launch_browser(p, a.browser, headless=not a.headed)
+        browser = launch_browser(p, a.browser, headless=not a.headed, cdp_url=a.cdp_url)
         try:
             state = collect(browser, a.storage_state, load_intake(a.intake), load_menu_map(a.menu_map),
                             a.raw_dir, a.workdir, only=a.only, allow_post=a.allow_post,

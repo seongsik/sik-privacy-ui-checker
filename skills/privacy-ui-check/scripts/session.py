@@ -13,6 +13,7 @@ import argparse
 import json
 import os
 from pathlib import Path
+from urllib.parse import urlparse
 
 from playwright.sync_api import TimeoutError as PlaywrightTimeout
 from playwright.sync_api import sync_playwright
@@ -51,14 +52,23 @@ def _check_outside(storage_state: Path, workdir: Path) -> None:
         raise ValueError(f"세션 파일은 작업 폴더 밖에 둔다: {storage_state}")
 
 
-BROWSERS = ("chromium", "chrome")
+BROWSERS = ("chromium", "chrome", "cdp")
+CDP_URL = "http://127.0.0.1:9222"
 
 
-def launch_browser(p, name: str = "chromium", *, headless: bool = True):
-    """점검용 브라우저를 띄운다. chromium = Playwright 가 내려받은 Chromium, chrome = PC 에 설치된 정식 Chrome
-    (새 격리 프로필로 뜬다. 보안 프로그램이 테스트용 Chromium 만 막는 환경에서 쓴다)."""
+def launch_browser(p, name: str = "chromium", *, headless: bool = True, cdp_url: str = CDP_URL):
+    """점검용 브라우저를 띄우거나 연결한다.
+    chromium = Playwright 가 내려받은 Chromium, chrome = PC 에 설치된 정식 Chrome(새 격리 프로필),
+    cdp = 사용자가 원격 디버깅 포트를 열고 직접 띄운 Chrome 에 연결(보안 프로그램이 자동화로 띄운 브라우저의
+    네트워크를 막는 PC 용). 어느 경우든 점검은 browser.new_context 로 만든 격리 컨텍스트에서 하고,
+    cdp 의 browser.close() 는 연결만 끊는다."""
     if name not in BROWSERS:
         raise ValueError(f"브라우저는 {BROWSERS} 중 하나: {name}")
+    if name == "cdp":
+        host = urlparse(cdp_url).hostname
+        if host not in ("127.0.0.1", "localhost", "::1"):
+            raise ValueError(f"CDP 주소는 이 PC(로컬)여야 한다: {cdp_url}")
+        return p.chromium.connect_over_cdp(cdp_url)
     kw = {"headless": headless}
     if name == "chrome":
         kw["channel"] = "chrome"
@@ -67,7 +77,8 @@ def launch_browser(p, name: str = "chromium", *, headless: bool = True):
 
 def add_browser_option(ap) -> None:
     ap.add_argument("--browser", choices=BROWSERS, default="chromium",
-                    help="chrome 이면 PC 에 설치된 Chrome 을 새 격리 프로필로 띄운다")
+                    help="chrome: 설치된 Chrome 을 새 프로필로 띄움, cdp: 원격 디버깅 포트로 직접 띄운 Chrome 에 연결")
+    ap.add_argument("--cdp-url", default=CDP_URL, help="--browser cdp 일 때 연결할 주소(로컬만)")
 
 
 def new_context(browser, storage_state: Path | None = None, **options):
@@ -91,13 +102,13 @@ def open_context(browser, storage_state: Path):
 
 def run_login(target_url: str, login_wait: str, storage_state: Path, workdir: Path, *,
               headless: bool = False, timeout_ms: int = 600_000, start_url: str | None = None,
-              browser_name: str = "chromium") -> Path:
+              browser_name: str = "chromium", cdp_url: str = CDP_URL) -> Path:
     """사용자가 로그인할 때까지 기다렸다가 세션을 저장한다. 시간 안에 끝나지 않으면 TimeoutError."""
     kind, value = _parse_condition(login_wait)
     storage_state, workdir = Path(storage_state), Path(workdir)
     _check_outside(storage_state, workdir)
     with sync_playwright() as p:
-        browser = launch_browser(p, browser_name, headless=headless)
+        browser = launch_browser(p, browser_name, headless=headless, cdp_url=cdp_url)
         try:
             ctx = new_context(browser)
             page = ctx.new_page()
@@ -126,7 +137,7 @@ def main() -> None:
     a = ap.parse_args()
     print("열린 브라우저 창에서 직접 로그인해 주세요. 아이디·비밀번호는 채팅이나 파일에 적지 않습니다.")
     path = run_login(a.url, a.login_wait, a.storage_state, a.workdir, timeout_ms=a.timeout * 1000,
-                     browser_name=a.browser)
+                     browser_name=a.browser, cdp_url=a.cdp_url)
     print(f"세션 저장: {path} (로그인 쿠키가 들어 있습니다. 점검이 끝나면 삭제하세요.)")
 
 

@@ -161,7 +161,7 @@ def main() -> None:
     add_browser_option(ap)
     a = ap.parse_args()
     with sync_playwright() as p:
-        browser = launch_browser(p, a.browser, headless=False)
+        browser = launch_browser(p, a.browser, headless=False, cdp_url=a.cdp_url)
         record = run_active_test(
             browser, a.storage_state, load_intake(a.intake), load_menu_map(a.menu_map), item_id=a.item,
             approval={"text": a.approval, "approved_by": a.approved_by}, start_url=a.start_url,

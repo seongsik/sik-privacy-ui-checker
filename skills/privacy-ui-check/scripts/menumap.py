@@ -156,7 +156,7 @@ def main() -> None:
     a = ap.parse_args()
     intake = load_intake(a.intake)
     with sync_playwright() as p:
-        browser = launch_browser(p, a.browser, headless=not a.headed)
+        browser = launch_browser(p, a.browser, headless=not a.headed, cdp_url=a.cdp_url)
         data = build_menu_map(open_context(browser, a.storage_state), intake)
         browser.close()
     a.out.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")

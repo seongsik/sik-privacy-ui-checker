@@ -101,3 +101,17 @@ def test_every_cli_offers_browser_option(module):
     from pathlib import Path
     src = (Path(session.__file__).parent / f"{module}.py").read_text(encoding="utf-8")
     assert ('"--browser"' in src or "add_browser_option(ap)" in src) and "chromium.launch(" not in src.replace("p.chromium.launch(**", "")
+
+
+def test_launch_browser_connects_to_running_chrome_over_cdp():
+    p = _FakePlaywright()
+    p.chromium.connect_over_cdp = lambda url: ("cdp", url)
+    assert session.launch_browser(p, "cdp", cdp_url="http://127.0.0.1:9333") == ("cdp", "http://127.0.0.1:9333")
+    assert p.chromium.calls == []  # 브라우저를 새로 띄우지 않는다
+
+
+def test_cdp_url_must_be_local():
+    p = _FakePlaywright()
+    p.chromium.connect_over_cdp = lambda url: url
+    with pytest.raises(ValueError, match="로컬"):
+        session.launch_browser(p, "cdp", cdp_url="http://10.0.0.5:9222")
