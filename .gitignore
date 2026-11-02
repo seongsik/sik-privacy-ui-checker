@@ -1,0 +1,15 @@
+# Python
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# 점검 원본(스크린샷·DOM·HAR·세션): 작업 폴더 밖에 두지만, 실수로 저장소 안에 생겨도 올리지 않는다
+**/_raw/
+**/*_raw/
+**/session*.json
+*.har
+
+# 실행기 작업 공간
+.superpowers/
+.agent-visuals/

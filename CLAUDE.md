@@ -7,9 +7,10 @@
      its reason and date on the same line, so reviewers can see the standard being bypassed. -->
 
 ## Commands
-- Build:
-- Test:
-- Lint / typecheck:
+- Setup: `"%LOCALAPPDATA%\Programs\Python\Python312\python.exe" -m venv .venv`, then `.venv/Scripts/python -m pip install -r requirements.txt` and `.venv/Scripts/python -m playwright install chromium` (Python 3.10+; the `py` launcher here lists only 3.8)
+- Build: none (skill scripts run in place)
+- Test: `.venv/Scripts/python -m pytest -q`
+- Lint / typecheck: none
 
 ## Conventions
 

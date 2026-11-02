@@ -1,0 +1,9 @@
+{
+  "M06-02": [
+    {"n": 1, "selector": "input[name=\"ssn\"]", "label": "주민등록번호 전체 표시"},
+    {"n": 2, "selector": "input[name=\"card\"]", "label": "숨은 필드의 카드번호"}
+  ],
+  "M07-03": [
+    {"n": 1, "selector": "form[action=\"/login/submit\"]", "label": "GET 로그인 폼"}
+  ]
+}

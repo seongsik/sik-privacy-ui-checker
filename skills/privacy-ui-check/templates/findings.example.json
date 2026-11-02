@@ -1,0 +1,32 @@
+{
+  "findings": [
+    {
+      "no": "V-001",
+      "item_ids": ["SAFE-07-01-02"],
+      "verdict": "취약",
+      "risk": "상",
+      "category": "암호화·전송",
+      "title": "비밀번호가 URL 파라미터로 전송됨",
+      "menu": "M01-01",
+      "url": "https://shop.example.com/login",
+      "params": ["pw"],
+      "inputs": "테스트 계정 로그인(비밀번호 값은 기록하지 않음)",
+      "shots": [
+        {
+          "file": "img/V-001_1.png",
+          "width": 1920,
+          "height": 1080,
+          "boxes": [{"n": 1, "left": 31.2, "top": 22.0, "width": 18.4, "height": 4.1}]
+        }
+      ],
+      "problems": [{"n": 1, "text": "로그인 요청 URL에 비밀번호가 평문으로 포함됨"}],
+      "remediation": "로그인은 POST 본문으로 보내고 URL·로그에 비밀번호가 남지 않게 한다.",
+      "basis": "개인정보의 안전성 확보조치 기준 제7조제1항(해석에 따른 판정)",
+      "evidence_refs": ["har:entry-42"],
+      "active_test": null
+    }
+  ],
+  "others": [
+    {"item_id": "SAFE-04-01-01", "verdict": "점검불가", "reason": "서면 항목", "request": "내부 관리계획 최신본"}
+  ]
+}

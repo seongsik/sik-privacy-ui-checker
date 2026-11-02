@@ -75,10 +75,10 @@
 **검증:** `.venv/Scripts/python -m pytest -q tests/test_smoke.py`
 Expected: `1 passed` 이상, 실패 0
 
-- [ ] 테스트 작성, 실패 확인
-- [ ] 구현
-- [ ] 검증 명령 통과
-- [ ] Commit (`Refs: REQ-014`)
+- [x] 테스트 작성, 실패 확인
+- [x] 구현
+- [x] 검증 명령 통과
+- [x] Commit (`Refs: REQ-014`)
 
 ### Task 2: 데이터 모델 [REQ-001, REQ-007, REQ-011, REQ-013] [w=2]
 
@@ -93,10 +93,10 @@ Expected: `1 passed` 이상, 실패 0
 **검증:** `.venv/Scripts/python -m pytest -q tests/test_models.py`
 Expected: 실패 0
 
-- [ ] 테스트 작성, 실패 확인
-- [ ] 구현
-- [ ] 검증 명령 통과
-- [ ] Commit (`Refs: REQ-001, REQ-007, REQ-011, REQ-013`)
+- [x] 테스트 작성, 실패 확인
+- [x] 구현
+- [x] 검증 명령 통과
+- [x] Commit (`Refs: REQ-001, REQ-007, REQ-011, REQ-013`)
 
 ### Task 3: 점검 기준 YAML [REQ-006, REQ-009] [w=2]
 
@@ -110,10 +110,10 @@ Expected: 실패 0
 **검증:** `.venv/Scripts/python -m pytest -q tests/test_criteria.py`
 Expected: 실패 0, 출력에 `273 items`
 
-- [ ] 테스트 작성, 실패 확인
-- [ ] 구현
-- [ ] 검증 명령 통과
-- [ ] Commit (`Refs: REQ-006, REQ-009`)
+- [x] 테스트 작성, 실패 확인
+- [x] 구현
+- [x] 검증 명령 통과
+- [x] Commit (`Refs: REQ-006, REQ-009`)
 
 ### Task 4: 데모 사이트 [REQ-014] [w=3]
 
@@ -127,10 +127,10 @@ Expected: 실패 0, 출력에 `273 items`
 **검증:** `.venv/Scripts/python -m pytest -q tests/test_demo.py`
 Expected: 실패 0
 
-- [ ] 테스트 작성, 실패 확인
-- [ ] 구현
-- [ ] 검증 명령 통과
-- [ ] Commit (`Refs: REQ-014`)
+- [x] 테스트 작성, 실패 확인
+- [x] 구현
+- [x] 검증 명령 통과
+- [x] Commit (`Refs: REQ-014`)
 
 ### Task 5: 쓰기 차단(guard) [REQ-004, REQ-012] [w=2]
 
@@ -144,10 +144,10 @@ Expected: 실패 0
 **검증:** `.venv/Scripts/python -m pytest -q tests/test_guard.py`
 Expected: 실패 0
 
-- [ ] 테스트 작성, 실패 확인
-- [ ] 구현
-- [ ] 검증 명령 통과
-- [ ] Commit (`Refs: REQ-004, REQ-012`)
+- [x] 테스트 작성, 실패 확인
+- [x] 구현
+- [x] 검증 명령 통과
+- [x] Commit (`Refs: REQ-004, REQ-012`)
 
 ### Task 6: 세션과 로그인 대기 [REQ-002] [w=1]
 
@@ -161,10 +161,10 @@ Expected: 실패 0
 **검증:** `.venv/Scripts/python -m pytest -q tests/test_session.py`
 Expected: 실패 0
 
-- [ ] 테스트 작성, 실패 확인
-- [ ] 구현
-- [ ] 검증 명령 통과
-- [ ] Commit (`Refs: REQ-002`)
+- [x] 테스트 작성, 실패 확인
+- [x] 구현
+- [x] 검증 명령 통과
+- [x] Commit (`Refs: REQ-002`)
 
 ### Task 7: 메뉴맵 수집 [REQ-003] [w=2]
 
@@ -177,10 +177,10 @@ Expected: 실패 0
 **검증:** `.venv/Scripts/python -m pytest -q tests/test_menumap.py`
 Expected: 실패 0
 
-- [ ] 테스트 작성, 실패 확인
-- [ ] 구현
-- [ ] 검증 명령 통과
-- [ ] Commit (`Refs: REQ-003`)
+- [x] 테스트 작성, 실패 확인
+- [x] 구현
+- [x] 검증 명령 통과
+- [x] Commit (`Refs: REQ-003`)
 
 ### Task 8: 수집기 [REQ-005, REQ-012, REQ-013] [w=3]
 
@@ -194,10 +194,10 @@ Expected: 실패 0
 **검증:** `.venv/Scripts/python -m pytest -q tests/test_collect.py`
 Expected: 실패 0
 
-- [ ] 테스트 작성, 실패 확인
-- [ ] 구현
-- [ ] 검증 명령 통과
-- [ ] Commit (`Refs: REQ-005, REQ-012, REQ-013`)
+- [x] 테스트 작성, 실패 확인
+- [x] 구현
+- [x] 검증 명령 통과
+- [x] Commit (`Refs: REQ-005, REQ-012, REQ-013`)
 
 ### Task 9: 자동 점검 후보 [REQ-007] [w=2]
 
@@ -211,10 +211,10 @@ Expected: 실패 0
 **검증:** `.venv/Scripts/python -m pytest -q tests/test_auto_checks.py`
 Expected: 실패 0
 
-- [ ] 테스트 작성, 실패 확인
-- [ ] 구현
-- [ ] 검증 명령 통과
-- [ ] Commit (`Refs: REQ-007`)
+- [x] 테스트 작성, 실패 확인
+- [x] 구현
+- [x] 검증 명령 통과
+- [x] Commit (`Refs: REQ-007`)
 
 ### Task 10: 능동 시험 [REQ-008] [w=2]
 
@@ -227,10 +227,10 @@ Expected: 실패 0
 **검증:** `.venv/Scripts/python -m pytest -q tests/test_active_test.py`
 Expected: 실패 0
 
-- [ ] 테스트 작성, 실패 확인
-- [ ] 구현
-- [ ] 검증 명령 통과
-- [ ] Commit (`Refs: REQ-008`)
+- [x] 테스트 작성, 실패 확인
+- [x] 구현
+- [x] 검증 명령 통과
+- [x] Commit (`Refs: REQ-008`)
 
 ### Task 11: 가림과 번호 박스 [REQ-010] [w=2]
 
@@ -243,10 +243,10 @@ Expected: 실패 0
 **검증:** `.venv/Scripts/python -m pytest -q tests/test_mask.py`
 Expected: 실패 0
 
-- [ ] 테스트 작성, 실패 확인
-- [ ] 구현
-- [ ] 검증 명령 통과
-- [ ] Commit (`Refs: REQ-010`)
+- [x] 테스트 작성, 실패 확인
+- [x] 구현
+- [x] 검증 명령 통과
+- [x] Commit (`Refs: REQ-010`)
 
 ### Task 12: 리포트 빌더 [REQ-011] [w=3]
 
@@ -260,10 +260,10 @@ Expected: 실패 0
 **검증:** `.venv/Scripts/python -m pytest -q tests/test_report.py`
 Expected: 실패 0
 
-- [ ] 테스트 작성, 실패 확인
-- [ ] 구현
-- [ ] 검증 명령 통과
-- [ ] Commit (`Refs: REQ-011`)
+- [x] 테스트 작성, 실패 확인
+- [x] 구현
+- [x] 검증 명령 통과
+- [x] Commit (`Refs: REQ-011`)
 
 ### Task 13: 리포트 검증기 [REQ-011, REQ-014] [w=2]
 
@@ -276,10 +276,10 @@ Expected: 실패 0
 **검증:** `.venv/Scripts/python -m pytest -q tests/test_verify_report.py`
 Expected: 실패 0
 
-- [ ] 테스트 작성, 실패 확인
-- [ ] 구현
-- [ ] 검증 명령 통과
-- [ ] Commit (`Refs: REQ-011, REQ-014`)
+- [x] 테스트 작성, 실패 확인
+- [x] 구현
+- [x] 검증 명령 통과
+- [x] Commit (`Refs: REQ-011, REQ-014`)
 
 ### Task 14: SKILL.md와 참조 문서 [REQ-001, REQ-007, REQ-008, REQ-009, REQ-012] [w=2]
 
@@ -292,10 +292,10 @@ Expected: 실패 0
 **검증:** `.venv/Scripts/python -m pytest -q tests/test_skill_docs.py`
 Expected: 실패 0
 
-- [ ] 테스트 작성, 실패 확인
-- [ ] 구현
-- [ ] 검증 명령 통과
-- [ ] Commit (`Refs: REQ-001, REQ-007, REQ-008, REQ-009, REQ-012`)
+- [x] 테스트 작성, 실패 확인
+- [x] 구현
+- [x] 검증 명령 통과
+- [x] Commit (`Refs: REQ-001, REQ-007, REQ-008, REQ-009, REQ-012`)
 
 ### Task 15: 데모 E2E [REQ-014] [w=3]
 
@@ -308,7 +308,7 @@ Expected: 실패 0
 **검증:** `.venv/Scripts/python -m pytest -q tests/test_e2e_demo.py`
 Expected: 실패 0
 
-- [ ] 테스트 작성, 실패 확인
-- [ ] 구현
-- [ ] 검증 명령 통과
-- [ ] Commit (`Refs: REQ-014`)
+- [x] 테스트 작성, 실패 확인
+- [x] 구현
+- [x] 검증 명령 통과
+- [x] Commit (`Refs: REQ-014`)
