@@ -19,6 +19,9 @@ description: 운영 중인 웹서비스를 격리 브라우저에서 읽기 전�
 
 - 파이썬 3.10+, 이 스킬 폴더의 의존성: `pip install pillow playwright pyyaml` 후 `python -m playwright install chromium`.
 - 모든 명령은 **이 스킬 폴더(`skills/privacy-ui-check/`)에서** `python -m scripts.<모듈>` 로 실행한다.
+  파이썬은 의존성을 설치한 환경을 쓴다. 개발 저장소(sik-privacy-ui-checker)에서 연결해 쓰는 경우 `<저장소>\.venv\Scripts\python.exe`.
+- **화면이 뜨는 단계(Chromium 설치, 1단계 로그인, 5단계 능동 시험)와 점검 대상에 접속하는 단계는 사용자의 터미널에서 실행한다.**
+  Claude 의 명령 실행 환경이 격리(sandbox)돼 있으면 창을 띄우지 못하거나, 거기서 설치한 Chromium·띄운 서버가 사용자 쪽에서 보이지 않는다.
 - 폴더 두 개를 정한다:
   - **작업 폴더** `<사이트>_<날짜>/` — intake.json, menu_map.json, findings.json, img/, 리포트(배포 대상)
   - **원본 폴더** — 작업 폴더 **밖**(예: `<작업 폴더>_raw/`). 세션 파일, raw/, preview/, evidence/ 를 여기에 둔다.
