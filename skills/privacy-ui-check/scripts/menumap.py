@@ -20,7 +20,7 @@ from collections import OrderedDict
 from pathlib import Path
 from urllib.parse import urldefrag, urljoin, urlparse
 
-from scripts.guard import Guard, install_guard
+from scripts.guard import Guard, install_guard, settle
 
 # 주소가 평범해도 글자가 상태 변경을 뜻하는 링크(쿠폰 삭제, 주문취소 …)는 방문하지 않고 blocked 로 둔다
 DENY_TEXT = re.compile(r"삭제|로그아웃|취소|승인|발송|결제|저장|초기화|해지|탈퇴하기|수신거부|logout|log out|sign out|delete|remove",
@@ -65,6 +65,7 @@ def build_menu_map(context, intake: dict, *, delay_s: float = 1.0, max_pages: in
         visited.add(url)
         try:
             page.goto(url)
+            settle(page)
         except Exception:  # noqa: BLE001 - 열리지 않는 화면은 메뉴맵 확인 단계에서 사람이 본다
             continue
         for link in page.evaluate(READ_LINKS):

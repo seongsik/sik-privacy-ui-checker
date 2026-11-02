@@ -135,6 +135,12 @@ class Handler(BaseHTTPRequestHandler):
             return self.send(layout("이동", '<p id="mv" style="position:relative">연락처 010-2222-3333</p>',
                                     head="<script>let i=0;setInterval(()=>{document.getElementById('mv').style.left="
                                          "(i++%40)*5+'px';},30);</script>"))
+        if path == "/__sso":  # 세션이 끊겨 다른 도메인(SSO)으로 보내는 경우
+            return self.redirect("http://sso.invalid/auth?return=/my")
+        if path == "/__bounce":  # 'login' 이 들어가지 않은 로그인 주소로 보내는 경우
+            return self.redirect("/member/signin")
+        if path == "/member/signin":
+            return self.send(layout("로그인", "<p>다시 로그인해 주세요.</p>"))
         if path == "/go":  # 리다이렉트로 상태 변경 GET 에 닿는 함정
             return self.redirect(q.get("to", ["/"])[0])
         if path == "/__expire":  # 요청한 쪽의 세션만 끝낸다
@@ -273,6 +279,7 @@ def join(h, q):  # 취약: 동의 미구분, 거부권 미고지, 마케팅 사�
     h.send(layout("회원가입", """<form method="post" action="/join">
 <label>이름 <input name="name"></label><label>주민등록번호 <input name="jumin" placeholder="000000-0000000"></label>
 <label>비밀번호 <input type="password" name="pw"></label><p class="help">비밀번호는 4자 이상 입력하세요.</p>
+<div class="g-recaptcha" data-sitekey="demo"></div>
 <fieldset><legend>약관 동의</legend>
 <label><input type="checkbox" name="agree_all" required> 이용약관, 개인정보 수집·이용(필수), 제3자 제공(선택)에 모두 동의합니다.</label>
 <label><input type="checkbox" name="marketing" checked> 마케팅 정보 수신(SMS·이메일)에 동의합니다.</label>

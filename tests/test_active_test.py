@@ -141,3 +141,19 @@ def test_approved_target_bodies_are_dropped_from_har(browser, demo, tmp_path):
     har = json.loads((tmp_path / "raw" / "ACT-SAFE-05-06-02" / "network.har").read_text(encoding="utf-8"))
     posts = [e for e in har["log"]["entries"] if e["request"]["method"] == "POST"]
     assert posts and all("admin" not in (e["request"].get("postData") or {}).get("text", "") for e in posts)
+
+
+def test_record_and_scrubbed_har_survive_a_closed_window(browser, demo, tmp_path):
+    def drive(page):
+        page.fill('input[name="id"]', "admin")
+        page.fill('input[name="pw"]', "wrong-pass")
+        page.click('form[action="/admin/login"] button')
+        page.wait_for_load_state()
+        page.close()  # 사용자가 창을 닫음
+    with pytest.raises(Exception):
+        run(browser, demo, tmp_path, driver=drive)
+    out = tmp_path / "raw" / "ACT-SAFE-05-06-02"
+    record = json.loads((out / "record.json").read_text(encoding="utf-8"))
+    assert record["attempts"] == 1 and record["aborted"]
+    assert "wrong-pass" not in (out / "network.har").read_text(encoding="utf-8")
+    assert not (out / ".network.har").exists()

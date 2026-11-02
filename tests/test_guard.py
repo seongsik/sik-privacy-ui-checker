@@ -1,9 +1,10 @@
 """쓰기 차단(설계서 7-1) 테스트: 데모 함정이 서버에 닿지 않는지 실제 브라우저로 확인한다."""
 import pytest
+from urllib.parse import urlparse
 from playwright.sync_api import Error as PlaywrightError
 from playwright.sync_api import sync_playwright
 
-from scripts.guard import Guard, install_guard
+from scripts.guard import Guard, install_guard, settle
 from scripts.session import new_context
 
 INTAKE = {"target_url": "https://shop.example.com", "allowed_domains": ["shop.example.com"]}
@@ -242,3 +243,20 @@ def test_logged_urls_are_scrubbed():
     g = Guard(INTAKE, {})
     g._log(g.blocked_log, "GET", BASE + "/x?userPw=s3cret&id=kim", "deny-pattern")
     assert "s3cret" not in g.blocked_log[0]["url"] and "kim" in g.blocked_log[0]["url"]
+
+
+def test_cross_domain_redirect_is_blocked(browser, demo):
+    ctx, page, guard = make(browser, demo)
+    page.goto(demo.url("/go?to=http://example.invalid/x"))
+    settle(page)
+    assert any("out-of-scope" in (e["reason"] or "") for e in guard.blocked_log)
+    assert urlparse(page.url).hostname == "127.0.0.1"
+    ctx.close()
+
+
+def test_allowed_redirect_lands_on_target_after_settle(browser, demo):
+    ctx, page, guard = make(browser, demo)
+    page.goto(demo.url("/go?to=/notice"))
+    settle(page)
+    assert page.url.endswith("/notice") and page.locator("h1").inner_text() == "공지사항"
+    ctx.close()

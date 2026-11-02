@@ -103,33 +103,40 @@ def run_active_test(browser, storage_state, intake: dict, menu_map: dict, *, ite
         route.fulfill(response=resp)
 
     ctx.route("**/*", on_target)  # 나중에 건 route 가 먼저 실행된다
-    page = ctx.new_page()
-    page.goto(start_url)
-    if driver:
-        driver(page)
-    else:
-        print(f"[{item_id}] 열린 창에서 승인한 시험을 직접 진행하세요. 최대 {max_attempts}회까지만 서버로 전달됩니다.")
-        deadline, seen = time.time() + timeout_s, 0
-        while time.time() < deadline and record["attempts"] < max_attempts:
-            page.wait_for_timeout(500)
-            if record["attempts"] > seen:
-                seen = record["attempts"]
-                shot = f"attempt-{seen}.png"
-                page.screenshot(path=str(out / shot))
-                record["observations"][-1]["screenshot"] = shot
-            if done_text and done_text in page.content():
-                break
-    page.wait_for_timeout(300)
-    page.screenshot(path=str(out / "final.png"), full_page=True)
-    record["final_screenshot"] = "final.png"
-    record["blocked_requests"] = len(guard.blocked_log)
-    ctx.close()
-
-    (out / "network.har").write_text(
-        json.dumps(scrub_har(drop_target_inputs(json.loads(har_tmp.read_text(encoding="utf-8")), targets)),
-                   ensure_ascii=False), encoding="utf-8")
-    har_tmp.unlink()
-    (out / "record.json").write_text(json.dumps(record, ensure_ascii=False, indent=2), encoding="utf-8")
+    record["aborted"] = None
+    try:
+        page = ctx.new_page()
+        page.goto(start_url)
+        if driver:
+            driver(page)
+        else:
+            print(f"[{item_id}] 열린 창에서 승인한 시험을 직접 진행하세요. 최대 {max_attempts}회까지만 서버로 전달됩니다.")
+            deadline, seen = time.time() + timeout_s, 0
+            while time.time() < deadline and record["attempts"] < max_attempts:
+                page.wait_for_timeout(500)
+                if record["attempts"] > seen:
+                    seen = record["attempts"]
+                    shot = f"attempt-{seen}.png"
+                    page.screenshot(path=str(out / shot))
+                    record["observations"][-1]["screenshot"] = shot
+                if done_text and done_text in page.content():
+                    break
+        page.wait_for_timeout(300)
+        page.screenshot(path=str(out / "final.png"), full_page=True)
+        record["final_screenshot"] = "final.png"
+    except Exception as e:  # noqa: BLE001 - 사용자가 창을 닫는 등. 기록은 아래에서 반드시 남긴다
+        record["aborted"] = f"{type(e).__name__}: {str(e).splitlines()[0][:200]}"
+        raise
+    finally:
+        # 서버에 이미 보낸 승인 요청의 기록(record.json)과 가린 HAR 은 어떤 경우에도 남긴다
+        record["blocked_requests"] = len(guard.blocked_log)
+        ctx.close()  # 여기서 HAR 이 써진다
+        if har_tmp.exists():
+            har = json.loads(har_tmp.read_text(encoding="utf-8"))
+            (out / "network.har").write_text(
+                json.dumps(scrub_har(drop_target_inputs(har, targets)), ensure_ascii=False), encoding="utf-8")
+            har_tmp.unlink()
+        (out / "record.json").write_text(json.dumps(record, ensure_ascii=False, indent=2), encoding="utf-8")
     return record
 
 

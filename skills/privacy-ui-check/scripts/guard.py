@@ -10,10 +10,14 @@
 """
 from __future__ import annotations
 
+import html
+import json
 import re
 import time
 from contextlib import contextmanager
-from urllib.parse import parse_qsl, unquote, urlparse
+from urllib.parse import parse_qsl, unquote, urljoin, urlparse
+
+from scripts.redact import scrub_text
 
 SAFE_METHODS = ("GET", "HEAD", "OPTIONS")
 
@@ -145,7 +149,31 @@ class Guard:
             self.allowed_log.append({"method": req.method, "url": scrub_text(req.url), "reason": "allow-post",
                                      "ts": time.time(),
                                      "body": scrub_text(req.post_data or "")[:300]})
+        if is_nav and req.method in SAFE_METHODS:
+            self._navigate(route)
+            return
         route.continue_()
+
+    def _navigate(self, route):
+        """화면 이동은 리다이렉트를 직접 다룬다. Chromium 은 다른 도메인으로 가는 리다이렉트 단계를 route 로 넘기지 않으므로,
+        3xx 를 브라우저에 그대로 주지 않고 이동할 곳을 검사한 뒤 '이어서 이동' 화면으로 답한다(다음 이동은 새 요청으로 다시 검사)."""
+        req = route.request
+        resp = route.fetch(max_redirects=0)
+        location = resp.headers.get("location")
+        if not (300 <= resp.status < 400 and location):
+            route.fulfill(response=resp)
+            return
+        nxt = urljoin(req.url, location)
+        reason = self.decide("GET", nxt, True)
+        if reason:
+            self._log(self.blocked_log, "GET", nxt, f"redirect-{reason}")
+            route.fulfill(status=200, content_type="text/html; charset=utf-8",
+                          body=f'<html data-guard-blocked="1"><body>[점검 도구] 이동을 막았습니다({reason}): '
+                               f'{html.escape(scrub_text(nxt))}</body></html>')
+            return
+        headers = {k: v for k, v in resp.headers.items() if k.lower() == "set-cookie"}
+        route.fulfill(status=200, content_type="text/html; charset=utf-8", headers=headers,
+                      body=f'<html data-guard-shim="1"><script>location.replace({json.dumps(nxt)})</script></html>')
 
     def _on_websocket(self, ws):
         # connect_to_server 를 부르지 않으므로 서버와 연결되지 않는다. 페이지가 보낸 메시지만 기록한다.
@@ -161,6 +189,18 @@ class Guard:
             yield self
         finally:
             self.temporary.remove(entry)
+
+
+def settle(page, timeout_ms: int = 10_000) -> None:
+    """guard 의 '이어서 이동' 화면을 지나 실제 화면에 도착할 때까지 기다린다(page.goto 뒤에 부른다)."""
+    for _ in range(10):  # 리다이렉트가 여러 번 이어질 수 있다
+        try:
+            page.wait_for_load_state("load", timeout=timeout_ms)
+            if not page.evaluate("() => document.documentElement.hasAttribute('data-guard-shim')"):
+                return
+        except Exception:  # noqa: BLE001 - 이동 중 문맥이 바뀌면 다시 본다
+            pass
+        page.wait_for_timeout(100)
 
 
 def install_guard(context, intake: dict, menu_map: dict, allow_post=()) -> Guard:

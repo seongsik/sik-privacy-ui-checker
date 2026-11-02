@@ -25,7 +25,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from urllib.parse import urlparse
 
-from scripts.guard import install_guard
+from scripts.guard import install_guard, settle
 from scripts.redact import scrub_har  # noqa: F401 - collect.scrub_har 로도 쓴다
 from scripts.mask import DOC_SIZE, FREEZE_CSS, MEASURE_PII, measure_boxes
 from scripts.session import new_context
@@ -49,7 +49,16 @@ def _dump(path: Path, data) -> None:
 
 def _load_state(raw: Path) -> dict:
     p = raw / "state.json"
-    return json.loads(p.read_text(encoding="utf-8")) if p.exists() else {"completed": [], "stopped": None}
+    state = json.loads(p.read_text(encoding="utf-8")) if p.exists() else {}
+    state.setdefault("completed", [])
+    state.setdefault("failed", {})
+    state.setdefault("stopped", None)
+    return state
+
+
+LOGIN_PATH = re.compile(r"login|signin|sign-in|sso|auth|logon", re.I)
+TITLE_RE = re.compile(r"<title[^>]*>(.*?)</title>|<h1[^>]*>(.*?)</h1>", re.I | re.S)
+CHALLENGE_TITLE = re.compile(r"captcha|자동입력 ?방지|보안 ?확인|security check|are you a robot", re.I)
 
 
 def _check(menu: dict, resp, page, forbidden_streak: int) -> tuple[str | None, int]:
@@ -57,12 +66,13 @@ def _check(menu: dict, resp, page, forbidden_streak: int) -> tuple[str | None, i
     html = page.content()
     if status == 429:
         return "rate-limited", forbidden_streak
-    if WAF_RE.search(html):
+    if status >= 400 and WAF_RE.search(html):
         return "waf", forbidden_streak
-    if CAPTCHA_RE.search(html):
+    # 화면 안의 CAPTCHA 위젯(회원가입 등)은 멈추지 않는다. 보안 확인 화면 자체일 때만 멈춘다
+    heads = " ".join(" ".join(m) for m in TITLE_RE.findall(html))
+    if (status >= 400 and CAPTCHA_RE.search(html)) or CHALLENGE_TITLE.search(heads):
         return "captcha", forbidden_streak
-    if menu.get("auth") == "user" and "login" in urlparse(page.url).path.lower() \
-            and "login" not in urlparse(menu["url"]).path.lower():
+    if menu.get("auth") == "user" and LOGIN_PATH.search(urlparse(page.url).path)             and not LOGIN_PATH.search(urlparse(menu["url"]).path):
         return "session-expired", forbidden_streak
     forbidden_streak = forbidden_streak + 1 if status == 403 else 0
     if forbidden_streak >= 2:
@@ -84,6 +94,71 @@ def _capture_with_rects(page, shot_path: Path, boxes: list[dict], tries: int = 3
     return after, box_after, False
 
 
+def _collect_one(browser, storage_state, intake, menu_map, raw_dir: Path, menu: dict, allow_post, boxes,
+                 streak: int, state: dict):
+    """메뉴 하나를 수집한다. 컨텍스트는 항상 닫고, 임시 HAR 은 항상 가리거나 지운다(가리지 않은 HAR 을 남기지 않는다)."""
+    out = raw_dir / menu["id"]
+    har_tmp = raw_dir / f".{menu['id']}.har"
+    pw_names: list[str] = []
+    keep_har = False
+    ctx = new_context(browser, Path(storage_state) if menu.get("auth") == "user" and storage_state else None,
+                      record_har_path=str(har_tmp), record_har_content="embed")
+    try:
+        guard = install_guard(ctx, intake, menu_map, allow_post)
+        page = ctx.new_page()
+        try:
+            resp, error = page.goto(menu["url"]), None
+        except Exception as e:  # noqa: BLE001 - 차단·연결 실패
+            resp, error = None, str(e)
+        else:
+            settle(page)  # guard 의 '이어서 이동' 화면을 지나 실제 화면까지
+            try:
+                page.wait_for_load_state("networkidle", timeout=10_000)
+            except Exception:  # noqa: BLE001 - 계속 요청하는 화면도 있다
+                pass
+            page.wait_for_timeout(300)
+        left = [b["url"] for b in guard.blocked_log if "out-of-scope" in (b["reason"] or "")]
+        if error or left:
+            state["failed"][menu["id"]] = (error or f"범위 밖으로 이동: {left[0]}")[:300]
+            # 회원 화면이 다른 도메인(SSO 등)으로 보내지면 세션이 끊긴 것으로 본다
+            if menu.get("auth") == "user" and left:
+                return "left-scope", left[0], streak
+            return None, None, streak
+        reason, streak = _check(menu, resp, page, streak)
+        if reason:
+            return reason, page.url, streak
+
+        out.mkdir(parents=True, exist_ok=True)
+        pw_names = page.eval_on_selector_all("input[type=password]", "els => els.map(e => e.name).filter(Boolean)")
+        pii_rects, box_rects, stable = _capture_with_rects(page, out / "screenshot.png", boxes)
+        html = page.content()
+        (out / "dom.html").write_text(html, encoding="utf-8")
+        _dump(out / "cookies.json", [dict(c, value="***") for c in ctx.cookies()])  # 속성만 쓴다
+        _dump(out / "storage.json", page.evaluate(READ_STORAGE))
+        _dump(out / "headers.json", {"url": menu["url"], "final_url": page.url, "status": resp.status if resp else None,
+                                      "headers": resp.all_headers() if resp else {}})
+        _dump(out / "meta.json", {
+            "menu": menu, "title": page.title(), "error": None, "accessible": bool(resp and resp.ok),
+            "captcha_widget": bool(CAPTCHA_RE.search(html)),
+            "blocked": guard.blocked_log, "allowed": guard.allowed_log,
+            "collected_at": datetime.now(timezone.utc).isoformat(),
+            # 가림·번호 박스 좌표(문서 기준 px). rects_stable=False 면 mask 가 이미지를 만들지 않는다
+            "pii_rects": pii_rects, "box_rects": box_rects, "rects_stable": stable,
+        })
+        keep_har = True
+        if menu["id"] not in state["completed"]:
+            state["completed"].append(menu["id"])
+        state["failed"].pop(menu["id"], None)
+        return None, None, streak
+    finally:
+        ctx.close()  # 여기서 HAR 이 써진다
+        if har_tmp.exists():
+            if keep_har:
+                har = json.loads(har_tmp.read_text(encoding="utf-8"))
+                _dump(out / "network.har", scrub_har(har, extra_names=pw_names))  # 화면의 비밀번호 칸 이름도 가린다
+            har_tmp.unlink()
+
+
 def collect(browser, storage_state: Path, intake: dict, menu_map: dict, raw_dir: Path, workdir: Path, *,
             only: list[str] | None = None, allow_post=(), delay_s: float = 1.5,
             boxes: dict[str, list[dict]] | None = None) -> dict:
@@ -103,58 +178,12 @@ def collect(browser, storage_state: Path, intake: dict, menu_map: dict, raw_dir:
     for i, menu in enumerate(targets):
         if i and delay_s:
             time.sleep(delay_s)
-        out = raw_dir / menu["id"]
-        har_tmp = raw_dir / f".{menu['id']}.har"
-        ctx = new_context(browser, Path(storage_state) if menu.get("auth") == "user" else None,
-                          record_har_path=str(har_tmp), record_har_content="embed")
-        guard = install_guard(ctx, intake, menu_map, allow_post)
-        page = ctx.new_page()
-        try:
-            resp = page.goto(menu["url"])
-        except Exception as e:  # noqa: BLE001 - 차단·연결 실패는 접근 불가로 기록
-            resp, error = None, str(e)
-        else:
-            error = None
-            try:
-                page.wait_for_load_state("networkidle", timeout=10_000)
-            except Exception:  # noqa: BLE001 - 계속 요청하는 화면도 있다
-                pass
-            page.wait_for_timeout(300)
-        reason, streak = _check(menu, resp, page, streak) if resp else (None, streak)
+        reason, detail, streak = _collect_one(browser, storage_state, intake, menu_map, raw_dir, menu, allow_post,
+                                              (boxes or {}).get(menu["id"], []), streak, state)
         if reason:
-            ctx.close()
-            har_tmp.unlink(missing_ok=True)
-            state["stopped"] = {"reason": reason, "menu_id": menu["id"], "url": page.url}
+            state["stopped"] = {"reason": reason, "menu_id": menu["id"], "url": detail}
             _dump(raw_dir / "state.json", state)
-            raise CollectStopped(reason, menu["id"], page.url)
-
-        out.mkdir(parents=True, exist_ok=True)
-        pw_names = page.eval_on_selector_all("input[type=password]", "els => els.map(e => e.name).filter(Boolean)")
-        pii_rects, box_rects, stable = _capture_with_rects(page, out / "screenshot.png",
-                                                           (boxes or {}).get(menu["id"], []))
-        (out / "dom.html").write_text(page.content(), encoding="utf-8")
-        _dump(out / "cookies.json", [dict(c, value="***") for c in ctx.cookies()])  # 속성만 쓴다
-        _dump(out / "storage.json", page.evaluate(READ_STORAGE))
-        _dump(out / "headers.json", {
-            "url": menu["url"], "final_url": page.url,
-            "status": resp.status if resp else None,
-            "headers": resp.all_headers() if resp else {},
-        })
-        _dump(out / "meta.json", {
-            "menu": menu, "title": page.title(), "error": error,
-            "accessible": bool(resp and resp.ok),
-            "blocked": guard.blocked_log, "allowed": guard.allowed_log,
-            "collected_at": datetime.now(timezone.utc).isoformat(),
-            # 가림·번호 박스 좌표(문서 기준 px). rects_stable=False 면 mask 가 이미지를 만들지 않는다
-            "pii_rects": pii_rects, "box_rects": box_rects, "rects_stable": stable,
-        })
-        ctx.close()  # 여기서 HAR 이 써진다
-        har = json.loads(har_tmp.read_text(encoding="utf-8"))
-        _dump(out / "network.har", scrub_har(har, extra_names=pw_names))  # 화면의 비밀번호 칸 이름도 가린다
-        har_tmp.unlink()
-
-        if menu["id"] not in state["completed"]:
-            state["completed"].append(menu["id"])
+            raise CollectStopped(reason, menu["id"], detail)
         state["stopped"] = None
         _dump(raw_dir / "state.json", state)
     return state

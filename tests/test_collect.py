@@ -217,3 +217,32 @@ def test_scrub_har_keeps_lookalike_names(name):
 def test_scrub_har_masks_page_password_field_names():
     har = {"log": {"entries": [{"request": {"postData": {"text": "id=kim&k9z=s3cret"}}}]}}
     assert "s3cret" not in json.dumps(scrub_har(har, extra_names=["k9z"]))
+
+
+def test_join_page_with_captcha_widget_is_collected(browser, storage, demo, tmp_path):
+    raw = run(browser, storage, demo, [menu("M1", demo.url("/join"))], tmp_path)
+    meta = json.loads((raw / "M1" / "meta.json").read_text(encoding="utf-8"))
+    assert meta["captcha_widget"] is True
+
+
+@pytest.mark.parametrize("path,reason", [("/__sso", "left-scope"), ("/__bounce", "session-expired")])
+def test_user_menu_that_leaves_for_sso_or_signin_stops(browser, storage, demo, tmp_path, path, reason):
+    with pytest.raises(CollectStopped) as e:
+        run(browser, storage, demo, [menu("M1", demo.url(path), auth="user")], tmp_path)
+    assert e.value.reason == reason
+
+
+def test_failed_menu_is_not_marked_completed(browser, storage, demo, tmp_path):
+    state = None
+    try:
+        run(browser, storage, demo, [menu("M1", demo.url("/__sso"))], tmp_path)
+    except CollectStopped:
+        pass
+    state = json.loads((tmp_path / "raw" / "state.json").read_text(encoding="utf-8"))
+    assert "M1" not in state["completed"] and "M1" in state["failed"]
+
+
+def test_bad_box_selector_leaves_no_unscrubbed_har(browser, storage, demo, tmp_path):
+    with pytest.raises(Exception):
+        run(browser, storage, demo, [menu("M1", demo.url("/faq"))], tmp_path, boxes={"M1": [{"n": 1, "selector": "!!bad[", "label": "x"}]})
+    assert not list((tmp_path / "raw").glob(".*.har"))
