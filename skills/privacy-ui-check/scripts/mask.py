@@ -13,6 +13,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import math
 from pathlib import Path
@@ -186,6 +187,18 @@ def draw_box(img: Image.Image, rect, n: int) -> None:
     d.text((cx, cy), str(n), fill="white", font=_font(18), anchor="mm")
 
 
+MANIFEST = "manifest.json"
+
+
+def add_to_manifest(img_dir: Path, image: Path) -> None:
+    """가림 처리한 이미지의 sha256 을 img/manifest.json 에 적는다. 리포트는 여기 있는 이미지만 넣는다."""
+    img_dir, image = Path(img_dir), Path(image)
+    path = img_dir / MANIFEST
+    data = json.loads(path.read_text(encoding="utf-8")) if path.exists() else {}
+    data[image.name] = hashlib.sha256(image.read_bytes()).hexdigest()
+    path.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+
+
 def render_shot(raw_menu_dir: Path, out_dir: Path, name: str, *, preview_dir: Path | None = None,
                 extra=(), boxes: list[dict] | None = None, img_prefix: str = "img/",
                 reviewed_nondom: bool = False) -> dict:
@@ -217,6 +230,7 @@ def render_shot(raw_menu_dir: Path, out_dir: Path, name: str, *, preview_dir: Pa
         draw_box(img, (b["x"], b["y"], b["w"], b["h"]), b["n"])
     out_dir.mkdir(parents=True, exist_ok=True)
     img.save(out_dir / f"{name}.png", "PNG", optimize=True)
+    add_to_manifest(out_dir, out_dir / f"{name}.png")
     if preview_dir:
         Path(preview_dir).mkdir(parents=True, exist_ok=True)
         img.resize((img.width // 2, img.height // 2)).save(Path(preview_dir) / f"{name}.png")

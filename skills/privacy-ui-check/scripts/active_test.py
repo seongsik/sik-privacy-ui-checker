@@ -22,7 +22,7 @@ from pathlib import Path
 
 from scripts.redact import scrub_har, scrub_text
 from scripts.guard import Guard, install_guard, is_destructive
-from scripts.session import new_context
+from scripts.session import new_context, private_dir
 
 TAG = re.compile(r"<script.*?</script>|<style.*?</style>|<[^>]+>", re.S | re.I)
 
@@ -57,7 +57,7 @@ def run_active_test(browser, storage_state, intake: dict, menu_map: dict, *, ite
     if raw_dir.resolve().is_relative_to(workdir.resolve()):
         raise ValueError(f"원본 폴더는 작업 폴더 밖에 둔다: {raw_dir}")
     out = raw_dir / f"ACT-{item_id}"
-    out.mkdir(parents=True, exist_ok=True)
+    private_dir(out)
     har_tmp = out / ".network.har"
 
     record = {

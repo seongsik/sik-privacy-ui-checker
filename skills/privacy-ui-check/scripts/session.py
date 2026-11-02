@@ -10,6 +10,8 @@
 from __future__ import annotations
 
 import argparse
+import json
+import os
 from pathlib import Path
 
 from playwright.sync_api import TimeoutError as PlaywrightTimeout
@@ -17,6 +19,24 @@ from playwright.sync_api import sync_playwright
 
 VIEWPORT = {"width": 1920, "height": 1080}
 SW_BLOCKED_MARK = "_privacy_ui_check_sw_blocked"
+
+
+def private_dir(path: Path) -> Path:
+    """소유자만 읽고 쓰는 폴더(POSIX 0700). 세션·원본 캡처처럼 가리지 않은 정보가 들어가는 곳에 쓴다."""
+    path.mkdir(parents=True, exist_ok=True, mode=0o700)
+    if os.name != "nt":
+        os.chmod(path, 0o700)
+    return path
+
+
+def write_private(path: Path, text: str) -> None:
+    """소유자만 읽고 쓰는 파일(POSIX 0600)로 쓴다."""
+    private_dir(Path(path).parent)
+    fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+    with os.fdopen(fd, "w", encoding="utf-8") as f:
+        f.write(text)
+    if os.name != "nt":
+        os.chmod(path, 0o600)
 
 
 def _parse_condition(cond: str) -> tuple[str, str]:
@@ -69,8 +89,7 @@ def run_login(target_url: str, login_wait: str, storage_state: Path, workdir: Pa
                     page.wait_for_url(lambda u: value in u, timeout=timeout_ms)
             except PlaywrightTimeout as e:
                 raise TimeoutError(f"{timeout_ms / 1000:.0f}초 안에 로그인이 확인되지 않았다({login_wait})") from e
-            storage_state.parent.mkdir(parents=True, exist_ok=True)
-            ctx.storage_state(path=str(storage_state))
+            write_private(storage_state, json.dumps(ctx.storage_state(), ensure_ascii=False))
         finally:
             browser.close()
     return storage_state

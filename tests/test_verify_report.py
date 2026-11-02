@@ -6,6 +6,7 @@ import pytest
 from PIL import Image
 
 import test_report as sample
+from scripts.mask import add_to_manifest
 from scripts.report.build_report import build_report
 from scripts.verify_report import verify_report
 
@@ -21,6 +22,7 @@ def make_workdir(path):
     for f in sample.FINDINGS:
         for s in f["shots"]:
             Image.new("RGB", (400, 200), "white").save(path / s["file"])
+            add_to_manifest(path / "img", path / s["file"])
     return build_report(path, date="2026-11-06")
 
 

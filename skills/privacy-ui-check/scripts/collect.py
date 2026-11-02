@@ -28,7 +28,7 @@ from urllib.parse import urlparse
 from scripts.guard import install_guard, settle
 from scripts.redact import scrub_har  # noqa: F401 - collect.scrub_har 로도 쓴다
 from scripts.mask import DOC_SIZE, FREEZE_CSS, find_nondom, measure_boxes, measure_pii
-from scripts.session import new_context
+from scripts.session import new_context, private_dir
 
 ARTIFACTS = ("screenshot.png", "dom.html", "network.har", "cookies.json", "storage.json", "headers.json", "meta.json")
 WAF_RE = re.compile(r"blocked by waf|web application firewall|request blocked|access denied by security policy", re.I)
@@ -128,7 +128,7 @@ def _collect_one(browser, storage_state, intake, menu_map, raw_dir: Path, menu: 
         if reason:
             return reason, page.url, streak
 
-        out.mkdir(parents=True, exist_ok=True)
+        private_dir(out)
         pw_names = page.eval_on_selector_all("input[type=password]", "els => els.map(e => e.name).filter(Boolean)")
         pii_rects, box_rects, stable = _capture_with_rects(page, out / "screenshot.png", boxes)
         html = page.content()
@@ -166,7 +166,7 @@ def collect(browser, storage_state: Path, intake: dict, menu_map: dict, raw_dir:
     raw_dir, workdir = Path(raw_dir), Path(workdir)
     if raw_dir.resolve().is_relative_to(workdir.resolve()):
         raise ValueError(f"원본 폴더는 작업 폴더 밖에 둔다: {raw_dir}")
-    raw_dir.mkdir(parents=True, exist_ok=True)
+    private_dir(raw_dir)
     state = _load_state(raw_dir)
     targets = [m for m in menu_map["menus"] if m["status"] == "visit"]
     if only:

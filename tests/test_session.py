@@ -59,3 +59,12 @@ def test_open_context_restores_login(tmp_path, demo):
 def test_no_credential_parameters():
     params = set(inspect.signature(session.run_login).parameters)
     assert not params & {"user", "username", "password", "pw", "passwd", "login_id"}
+
+
+
+@pytest.mark.skipif(__import__("os").name == "nt", reason="Windows 는 POSIX 권한 비트를 쓰지 않는다")
+def test_session_file_is_owner_only(tmp_path, demo):
+    state = tmp_path / "outside" / "session.json"
+    session.run_login(demo.base, "url:/faq", state, tmp_path / "w", headless=True, start_url=demo.login_url())
+    assert state.stat().st_mode & 0o777 == 0o600
+    assert state.parent.stat().st_mode & 0o777 == 0o700

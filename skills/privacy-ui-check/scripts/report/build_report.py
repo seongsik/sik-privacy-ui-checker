@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import argparse
 import base64
+import hashlib
 import html
 import json
 from collections import Counter, OrderedDict
@@ -18,6 +19,8 @@ from datetime import date as _date
 from pathlib import Path
 from urllib.parse import urlparse
 
+from scripts.auto_checks import CARD, EMAIL, MOBILE, RRN
+from scripts.mask import MANIFEST
 from scripts.models import (COMMON_MENU, DETAIL_VERDICTS, OTHER_VERDICTS, RISKS, load_findings, load_intake,
                             load_menu_map, sort_and_number, validate_findings)
 
@@ -45,8 +48,33 @@ def _circled(n: int) -> str:
 
 
 def _img_data(workdir: Path, rel: str) -> str:
-    data = base64.b64encode((workdir / rel).read_bytes()).decode()
-    return f"data:image/png;base64,{data}"
+    """가림 처리(mask.py)를 거친 img/ 안 이미지만 넣는다. 원본 캡처가 실수로 들어가지 않게 매니페스트 해시와 대조한다."""
+    img_dir = (workdir / "img").resolve()
+    path = (workdir / rel).resolve()
+    if not path.is_relative_to(img_dir) or path.parent != img_dir:
+        raise ValueError(f"리포트 이미지는 작업 폴더의 img/ 안에 있어야 한다: {rel}")
+    manifest = img_dir / MANIFEST
+    known = json.loads(manifest.read_text(encoding="utf-8")) if manifest.exists() else {}
+    data = path.read_bytes()
+    if known.get(path.name) != hashlib.sha256(data).hexdigest():
+        raise ValueError(f"가림 처리 기록(img/{MANIFEST})과 맞지 않는 이미지: {rel} — mask.py 로 다시 만든다")
+    return f"data:image/png;base64,{base64.b64encode(data).decode()}"
+
+
+TEXT_PII = [RRN, CARD, MOBILE, EMAIL]
+
+
+def _check_text_pii(findings: list[dict], others: list[dict]) -> None:
+    """리포트에 들어갈 글자에 개인정보 원문이 없어야 한다(문제점·URL·입력사항 등은 사람이 쓰므로 빌드에서 막는다)."""
+    for f in findings:
+        texts = [f.get(k) or "" for k in ("title", "url", "inputs", "remediation", "basis")]
+        texts += list(f.get("params") or []) + [p.get("text", "") for p in f.get("problems", [])]
+        for text in texts:
+            if any(p.search(str(text)) for p in TEXT_PII):
+                raise ValueError(f"리포트 글자에 개인정보 원문이 있다({f.get('title', '')[:30]}): 부분 가림으로 고친다")
+    for o in others:
+        if any(p.search(str(o.get(k) or "")) for k in ("reason", "request") for p in TEXT_PII):
+            raise ValueError(f"리포트 글자에 개인정보 원문이 있다({o.get('item_id')})")
 
 
 def _menu_label(menu_id: str, menus: dict) -> str:
@@ -160,6 +188,7 @@ def build_report(workdir: Path, *, date: str | None = None, out: Path | None = N
     data = load_findings(workdir / "findings.json")
     for w in validate_findings(data):
         print(f"[경고] {w}")
+    _check_text_pii(data["findings"], data["others"])
     findings = sort_and_number(data["findings"], menu_map)
     menus = {m["id"]: m for m in menu_map["menus"]}
     day = (date or _date.today().isoformat()).replace("-", "")
