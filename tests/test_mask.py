@@ -277,3 +277,33 @@ def test_nondom_sees_shadow_canvas_and_possible_closed_shadow():
         found = mask.find_nondom(page)
         b.close()
     assert "canvas" in found and "unreadable-shadow" in found
+
+
+def test_nested_iframe_under_scrolled_parent_frame_is_placed_and_clipped():
+    build = """() => new Promise(done => {
+      const outer = document.createElement('iframe');
+      outer.style.cssText = 'border:0;height:200px;width:400px';
+      outer.srcdoc = "<div style='height:300px'></div><iframe id='in' style='border:0;height:40px'></iframe>"
+                   + "<div style='height:600px'></div>";
+      outer.onload = () => {
+        const inner = outer.contentDocument.getElementById('in');
+        inner.onload = () => done();
+        inner.srcdoc = "<p style='margin:0'>010-1234-5678</p>";
+      };
+      document.body.style.margin = '0';
+      document.body.innerHTML = "<div style='height:100px'></div>";
+      document.body.append(outer);
+    })"""
+    with sync_playwright() as p:
+        b = p.chromium.launch()
+        page = b.new_page(viewport={"width": 800, "height": 600})
+        page.evaluate(build)
+        page.frames[1].evaluate("() => window.scrollTo(0, 250)")
+        page.wait_for_timeout(100)
+        box = page.frames[2].frame_element().bounding_box()
+        rects = [r for r in mask.measure_pii(page) if r["kind"] == "mobile"]
+        b.close()
+    assert rects
+    # 바깥 iframe(100~300px) 안에 있고, 화면에 보이는 안쪽 iframe 위치와 맞아야 한다
+    assert all(100 <= r["y"] and r["y"] + r["h"] <= 300 for r in rects)
+    assert all(abs(r["y"] - box["y"]) < 20 for r in rects)

@@ -109,8 +109,9 @@ NONDOM = r"""() => {
     }
   return found;
 }"""
-_FRAME_BOX = """e => { const r = e.getBoundingClientRect();
-  return {x: r.left + scrollX + e.clientLeft, y: r.top + scrollY + e.clientTop, w: e.clientWidth, h: e.clientHeight}; }"""
+_FRAME_BOX_JS = """(e, useScroll) => { const r = e.getBoundingClientRect();
+  const sx = useScroll ? scrollX : 0, sy = useScroll ? scrollY : 0;
+  return {x: r.left + sx + e.clientLeft, y: r.top + sy + e.clientTop, w: e.clientWidth, h: e.clientHeight}; }"""
 
 
 def _clip_to_box(rect: dict, box: dict) -> dict | None:
@@ -123,21 +124,25 @@ def _clip_to_box(rect: dict, box: dict) -> dict | None:
 
 def measure_pii(page) -> list[dict]:
     """메인 문서와 모든 iframe(다른 도메인 포함)의 개인정보 위치를 메인 문서 좌표로 잰다.
-    iframe 안은 보이는 영역 좌표로 재고, iframe 의 보이는 상자 밖으로 나가는 부분은 잘라 낸다."""
+    캡처는 최상위 문서 좌표(스크롤 포함)이고 iframe 안은 각자 보이는 부분만 찍힌다. 그래서 스크롤은 최상위 문서에서만
+    더하고, 그 아래 iframe 은 보이는 영역 기준으로 위치를 더한다. 결과는 모든 조상 iframe 의 보이는 상자 안으로 자른다."""
     rects = list(page.evaluate(MEASURE_PII))
     for frame in page.frames[1:]:
-        x = y = 0.0
-        box = None
+        chain = []
         f = frame
         while f.parent_frame:
-            b = f.frame_element().evaluate(_FRAME_BOX)
-            if box is None:
-                box = dict(b)
-            else:
-                box["x"], box["y"] = box["x"] + b["x"], box["y"] + b["y"]
-            x, y, f = x + b["x"], y + b["y"], f.parent_frame
+            chain.append(f)
+            f = f.parent_frame
+        x = y = 0.0
+        box = None
+        for fr in reversed(chain):  # 바깥 iframe 부터
+            top_level = fr.parent_frame.parent_frame is None
+            b = fr.frame_element().evaluate(_FRAME_BOX_JS, top_level)
+            here = {"x": x + b["x"], "y": y + b["y"], "w": b["w"], "h": b["h"]}
+            box = here if box is None else (_clip_to_box(dict(here, kind=""), box) or dict(here, w=0, h=0))
+            x, y = here["x"], here["y"]
         for r in frame.evaluate(MEASURE_PII, False):
-            clipped = _clip_to_box(dict(r, x=r["x"] + x, y=r["y"] + y), box)
+            clipped = _clip_to_box(dict(r, x=r["x"] + x, y=r["y"] + y), box) if box and box["w"] and box["h"] else None
             if clipped:
                 rects.append(clipped)
     return rects
