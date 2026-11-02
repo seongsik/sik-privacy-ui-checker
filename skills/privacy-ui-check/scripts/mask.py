@@ -31,7 +31,9 @@ BOX_COLOR = (229, 62, 62)
 
 # 화면 글자·입력값·표에서 개인정보 위치를 잰다(문서 기준 px). 열린 shadow DOM 안까지 본다(iframe 은 measure_pii 가 따로 잰다).
 # 이름은 입력칸 이름·라벨, th-td 짝, 표 머리글 열, 글 속 라벨 뒤 이름으로 찾는다.
-MEASURE_PII = r"""() => {
+MEASURE_PII = r"""(useScroll = true) => {
+  // iframe 안에서는 보이는 영역 기준(스크롤 제외)으로 잰다: 캡처에는 iframe 의 현재 보이는 부분만 찍힌다
+  const sx = useScroll ? scrollX : 0, sy = useScroll ? scrollY : 0;
   const pats = [['rrn', /\b\d{6}-?[1-8]\d{6}\b/g], ['card', /\b\d{4}[- ]?\d{4}[- ]?\d{4}[- ]?\d{4}\b/g],
                 ['mobile', /\b01[016789]-?\d{3,4}-?\d{4}\b/g], ['phone', /\b0(?:2|[3-6]\d|70)-\d{3,4}-\d{4}\b/g],
                 ['email', /[\w.+-]+@[\w-]+\.[\w.-]+/g],
@@ -40,8 +42,8 @@ MEASURE_PII = r"""() => {
   // 라벨 뒤에 흔히 오는 이름 아닌 말(없는, 입력, 변경 …)은 빼서 과잉 가림을 줄인다
   const labelled = /(받는 ?분|수령인|이름|성명|고객명|작성자|신청인|담당자)\s*[:：]?\s*(?!(?:없는|없음|없이|있는|입력|변경|확인|수정|검색|등록|정보|항목|표시|필수|선택)(?![가-힣]))([가-힣]{2,4})(?![가-힣])/g;
   const out = [];
-  const add = (r, kind) => { if (r.width > 0 && r.height > 0) out.push({x: Math.round(r.left + scrollX),
-      y: Math.round(r.top + scrollY), w: Math.ceil(r.width), h: Math.ceil(r.height), kind}); };
+  const add = (r, kind) => { if (r.width > 0 && r.height > 0) out.push({x: Math.round(r.left + sx),
+      y: Math.round(r.top + sy), w: Math.ceil(r.width), h: Math.ceil(r.height), kind}); };
   const roots = [document];
   for (let i = 0; i < roots.length; i++)
     for (const el of roots[i].querySelectorAll('*')) if (el.shadowRoot) roots.push(el.shadowRoot);
@@ -93,21 +95,51 @@ MEASURE_PII = r"""() => {
   return out;
 }"""
 # DOM 으로 잴 수 없는 콘텐츠(캔버스·플러그인·임베드). 있으면 사람이 미리보기를 확인했다는 표시 없이 이미지를 만들지 않는다
-NONDOM = "() => [...document.querySelectorAll('canvas, embed, object')].map(e => e.tagName.toLowerCase())"
-_FRAME_RECT = "e => { const r = e.getBoundingClientRect(); return {x: r.left + scrollX + e.clientLeft, y: r.top + scrollY + e.clientTop}; }"
+# DOM 으로 잴 수 없는 콘텐츠(캔버스·플러그인·임베드, 열린 shadow DOM 안 포함)와, 닫힌 shadow DOM 으로 보이는 사용자 정의 요소
+# (보이는데 자식·글자·열린 shadowRoot 가 없음). 있으면 사람이 미리보기를 확인했다는 표시 없이 이미지를 만들지 않는다
+NONDOM = r"""() => {
+  const roots = [document], found = [];
+  for (let i = 0; i < roots.length; i++)
+    for (const el of roots[i].querySelectorAll('*')) {
+      if (el.shadowRoot) roots.push(el.shadowRoot);
+      if (['CANVAS', 'EMBED', 'OBJECT'].includes(el.tagName)) found.push(el.tagName.toLowerCase());
+      const r = el.getBoundingClientRect();
+      if (el.tagName.includes('-') && !el.shadowRoot && el.childElementCount === 0 && !el.textContent.trim()
+          && r.width > 0 && r.height > 0) found.push('unreadable-shadow');
+    }
+  return found;
+}"""
+_FRAME_BOX = """e => { const r = e.getBoundingClientRect();
+  return {x: r.left + scrollX + e.clientLeft, y: r.top + scrollY + e.clientTop, w: e.clientWidth, h: e.clientHeight}; }"""
+
+
+def _clip_to_box(rect: dict, box: dict) -> dict | None:
+    x1, y1 = max(rect["x"], box["x"]), max(rect["y"], box["y"])
+    x2, y2 = min(rect["x"] + rect["w"], box["x"] + box["w"]), min(rect["y"] + rect["h"], box["y"] + box["h"])
+    if x2 <= x1 or y2 <= y1:
+        return None
+    return dict(rect, x=round(x1), y=round(y1), w=round(x2 - x1), h=round(y2 - y1))
 
 
 def measure_pii(page) -> list[dict]:
-    """메인 문서와 모든 iframe(다른 도메인 포함)의 개인정보 위치를 메인 문서 좌표로 잰다."""
+    """메인 문서와 모든 iframe(다른 도메인 포함)의 개인정보 위치를 메인 문서 좌표로 잰다.
+    iframe 안은 보이는 영역 좌표로 재고, iframe 의 보이는 상자 밖으로 나가는 부분은 잘라 낸다."""
     rects = list(page.evaluate(MEASURE_PII))
     for frame in page.frames[1:]:
         x = y = 0.0
+        box = None
         f = frame
         while f.parent_frame:
-            off = f.frame_element().evaluate(_FRAME_RECT)
-            x, y, f = x + off["x"], y + off["y"], f.parent_frame
-        for r in frame.evaluate(MEASURE_PII):
-            rects.append(dict(r, x=round(r["x"] + x), y=round(r["y"] + y)))
+            b = f.frame_element().evaluate(_FRAME_BOX)
+            if box is None:
+                box = dict(b)
+            else:
+                box["x"], box["y"] = box["x"] + b["x"], box["y"] + b["y"]
+            x, y, f = x + b["x"], y + b["y"], f.parent_frame
+        for r in frame.evaluate(MEASURE_PII, False):
+            clipped = _clip_to_box(dict(r, x=r["x"] + x, y=r["y"] + y), box)
+            if clipped:
+                rects.append(clipped)
     return rects
 
 

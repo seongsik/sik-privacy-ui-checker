@@ -251,3 +251,29 @@ def test_render_refuses_non_dom_content_until_reviewed(tmp_path):
     with pytest.raises(ValueError, match="DOM"):
         mask.render_shot(raw, tmp_path / "img", "V-001_1")
     mask.render_shot(raw, tmp_path / "img", "V-001_1", reviewed_nondom=True)
+
+
+def test_scrolled_iframe_rects_land_inside_the_visible_frame():
+    with sync_playwright() as p:
+        b = p.chromium.launch()
+        page = b.new_page(viewport={"width": 800, "height": 600})
+        page.set_content('<div style="height:150px"></div><iframe id="f" style="border:0;height:100px" '
+                         'srcdoc="<div style=\'height:300px\'></div><p style=\'margin:0\'>010-1234-5678</p>'
+                         '<div style=\'height:300px\'></div>"></iframe>')
+        page.wait_for_timeout(200)
+        page.frames[1].evaluate("() => window.scrollTo(0, 280)")
+        rects = [r for r in mask.measure_pii(page) if r["kind"] == "mobile"]
+        b.close()
+    assert rects and all(150 <= r["y"] and r["y"] + r["h"] <= 250 for r in rects)
+
+
+def test_nondom_sees_shadow_canvas_and_possible_closed_shadow():
+    with sync_playwright() as p:
+        b = p.chromium.launch()
+        page = b.new_page()
+        page.set_content('<div id="o"></div><x-closed id="c" style="display:block;width:50px;height:20px"></x-closed>'
+                         '<script>document.getElementById("o").attachShadow({mode:"open"}).innerHTML="<canvas></canvas>";'
+                         'document.getElementById("c").attachShadow({mode:"closed"}).innerHTML="<p>kim@example.com</p>";</script>')
+        found = mask.find_nondom(page)
+        b.close()
+    assert "canvas" in found and "unreadable-shadow" in found
