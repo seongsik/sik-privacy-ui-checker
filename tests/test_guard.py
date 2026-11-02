@@ -260,3 +260,11 @@ def test_allowed_redirect_lands_on_target_after_settle(browser, demo):
     settle(page)
     assert page.url.endswith("/notice") and page.locator("h1").inner_text() == "공지사항"
     ctx.close()
+
+
+def test_redirect_location_cannot_inject_script(browser, demo):
+    ctx, page, guard = make(browser, demo)
+    page.goto(demo.url("/go?to=/notice%3Fq%3D%3C/script%3E%3Cscript%3Ewindow.__x%3D1%3C/script%3E"))
+    settle(page)
+    assert page.evaluate("() => window.__x") is None
+    ctx.close()

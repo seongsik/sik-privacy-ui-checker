@@ -206,3 +206,48 @@ def test_measures_labelled_names_inside_free_text():
         b.close()
     names = [r for r in rects if r["kind"] == "name"]
     assert len(names) == 2, (names, texts)
+
+
+def _measure(html):
+    with sync_playwright() as p:
+        b = p.chromium.launch()
+        page = b.new_page(viewport={"width": 800, "height": 600})
+        page.set_content(html)
+        page.wait_for_timeout(200)
+        rects = mask.measure_pii(page)
+        b.close()
+    return rects
+
+
+def test_measures_inside_iframes_with_offset():
+    rects = _measure('<div style="height:200px"></div><iframe style="border:0" srcdoc="<p style=\'margin:0\'>010-1234-5678</p>"></iframe>')
+    phone = [r for r in rects if r["kind"] == "mobile"]
+    assert phone and phone[0]["y"] >= 200
+
+
+def test_measures_inside_open_shadow_roots():
+    rects = _measure('<div id="h"></div><script>document.getElementById("h").attachShadow({mode:"open"})'
+                     '.innerHTML="<p>kim@example.com</p>";</script>')
+    assert any(r["kind"] == "email" for r in rects)
+
+
+@pytest.mark.parametrize("text,kind", [("900101-5234567", "rrn"), ("9001011234567", "rrn"), ("4111111111111111", "card"),
+                                       ("02-123-4567", "phone"), ("031-1234-5678", "phone"),
+                                       ("서울특별시 중구 세종대로 110", "address")])
+def test_measures_more_personal_value_shapes(text, kind):
+    assert any(r["kind"] == kind for r in _measure(f"<p>{text}</p>"))
+
+
+def _raw_with(tmp_path, meta):
+    raw = tmp_path / "M1"
+    raw.mkdir()
+    blank().save(raw / "screenshot.png")
+    (raw / "meta.json").write_text(json.dumps(meta), encoding="utf-8")
+    return raw
+
+
+def test_render_refuses_non_dom_content_until_reviewed(tmp_path):
+    raw = _raw_with(tmp_path, {"pii_rects": [], "box_rects": [], "nondom": ["canvas"]})
+    with pytest.raises(ValueError, match="DOM"):
+        mask.render_shot(raw, tmp_path / "img", "V-001_1")
+    mask.render_shot(raw, tmp_path / "img", "V-001_1", reviewed_nondom=True)

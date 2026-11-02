@@ -21,68 +21,103 @@ from PIL import Image, ImageDraw, ImageFont
 
 CELL, PAD = 9, 3
 SOLID_KINDS = {"rrn", "card"}
-KINDS = SOLID_KINDS | {"mobile", "email", "name"}
+KINDS = SOLID_KINDS | {"mobile", "phone", "email", "name", "address"}
 # 측정과 캡처 사이에 화면이 움직이지 않게 애니메이션·전환·커서 깜박임을 멈춘다
 FREEZE_CSS = "*,*::before,*::after{animation:none!important;transition:none!important;caret-color:transparent!important}"
 DOC_SIZE = "() => [document.documentElement.scrollWidth, document.documentElement.scrollHeight]"
 SOLID_COLOR = (120, 128, 140)
 BOX_COLOR = (229, 62, 62)
 
-# 화면 글자·입력값·표에서 개인정보 위치를 잰다(문서 기준 px). 이름은 입력칸 이름·라벨, th-td 짝, 표 머리글 열로 찾는다.
+# 화면 글자·입력값·표에서 개인정보 위치를 잰다(문서 기준 px). 열린 shadow DOM 안까지 본다(iframe 은 measure_pii 가 따로 잰다).
+# 이름은 입력칸 이름·라벨, th-td 짝, 표 머리글 열, 글 속 라벨 뒤 이름으로 찾는다.
 MEASURE_PII = r"""() => {
-  const pats = [['rrn', /\b\d{6}-[1-4]\d{6}\b/g], ['card', /\b\d{4}[- ]\d{4}[- ]\d{4}[- ]\d{4}\b/g],
-                ['mobile', /\b01[016789]-?\d{3,4}-?\d{4}\b/g], ['email', /[\w.+-]+@[\w-]+\.[\w.-]+/g]];
+  const pats = [['rrn', /\b\d{6}-?[1-8]\d{6}\b/g], ['card', /\b\d{4}[- ]?\d{4}[- ]?\d{4}[- ]?\d{4}\b/g],
+                ['mobile', /\b01[016789]-?\d{3,4}-?\d{4}\b/g], ['phone', /\b0(?:2|[3-6]\d|70)-\d{3,4}-\d{4}\b/g],
+                ['email', /[\w.+-]+@[\w-]+\.[\w.-]+/g],
+                ['address', /(?:서울|부산|대구|인천|광주|대전|울산|세종|경기|강원|충청|충북|충남|전라|전북|전남|경상|경북|경남|제주)[가-힣]*\s+[가-힣]+(?:시|군|구)(?:\s+[가-힣]+(?:구|읍|면|동))?\s+[가-힣0-9]+(?:로|길|동|리)(?:\s*[\d-]+)?/g]];
   const nameRe = /(^|_)(name|nm|receiver)($|_)|이름|성명|수령인|받는 ?분|고객명/i;
   // 라벨 뒤에 흔히 오는 이름 아닌 말(없는, 입력, 변경 …)은 빼서 과잉 가림을 줄인다
   const labelled = /(받는 ?분|수령인|이름|성명|고객명|작성자|신청인|담당자)\s*[:：]?\s*(?!(?:없는|없음|없이|있는|입력|변경|확인|수정|검색|등록|정보|항목|표시|필수|선택)(?![가-힣]))([가-힣]{2,4})(?![가-힣])/g;
   const out = [];
   const add = (r, kind) => { if (r.width > 0 && r.height > 0) out.push({x: Math.round(r.left + scrollX),
       y: Math.round(r.top + scrollY), w: Math.ceil(r.width), h: Math.ceil(r.height), kind}); };
-  const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
-  let n;
-  while ((n = walker.nextNode())) {
-    const p = n.parentElement;
-    if (!p || ['SCRIPT', 'STYLE', 'NOSCRIPT'].includes(p.tagName)) continue;
-    for (const [kind, re] of pats) {
-      re.lastIndex = 0; let m;
-      while ((m = re.exec(n.data))) {
+  const roots = [document];
+  for (let i = 0; i < roots.length; i++)
+    for (const el of roots[i].querySelectorAll('*')) if (el.shadowRoot) roots.push(el.shadowRoot);
+  for (const root of roots) {
+    const walker = document.createTreeWalker(root === document ? document.body : root, NodeFilter.SHOW_TEXT);
+    let n;
+    while ((n = walker.nextNode())) {
+      const p = n.parentElement;
+      if (p && ['SCRIPT', 'STYLE', 'NOSCRIPT'].includes(p.tagName)) continue;
+      for (const [kind, re] of pats) {
+        re.lastIndex = 0; let m;
+        while ((m = re.exec(n.data))) {
+          const range = document.createRange();
+          range.setStart(n, m.index); range.setEnd(n, m.index + m[0].length);
+          for (const r of range.getClientRects()) add(r, kind);
+        }
+      }
+      // 글 속 이름: '받는 분 김영희', '작성자: 박민수'처럼 이름 라벨 바로 뒤의 한글 2~4자
+      labelled.lastIndex = 0; let m;
+      while ((m = labelled.exec(n.data))) {
+        const start = m.index + m[0].length - m[2].length;
         const range = document.createRange();
-        range.setStart(n, m.index); range.setEnd(n, m.index + m[0].length);
-        for (const r of range.getClientRects()) add(r, kind);
+        range.setStart(n, start); range.setEnd(n, start + m[2].length);
+        for (const r of range.getClientRects()) add(r, 'name');
       }
     }
-    // 글 속 이름: '받는 분 김영희', '작성자: 박민수'처럼 이름 라벨 바로 뒤의 한글 2~4자
-    labelled.lastIndex = 0; let m;
-    while ((m = labelled.exec(n.data))) {
-      const start = m.index + m[0].length - m[2].length;
-      const range = document.createRange();
-      range.setStart(n, start); range.setEnd(n, start + m[2].length);
-      for (const r of range.getClientRects()) add(r, 'name');
+    for (const el of root.querySelectorAll('input, textarea, select')) {
+      if (['hidden', 'password', 'checkbox', 'radio', 'submit', 'button'].includes(el.type) || !el.value) continue;
+      let kind = null;
+      for (const [k, re] of pats) { re.lastIndex = 0; if (re.test(el.value)) { kind = k; break; } }
+      const label = el.labels && el.labels[0] ? el.labels[0].innerText : '';
+      if (!kind && (nameRe.test(el.name || '') || nameRe.test(el.id || '') || nameRe.test(label))) kind = 'name';
+      if (kind) add(el.getBoundingClientRect(), kind);
     }
-  }
-  for (const el of document.querySelectorAll('input, textarea, select')) {
-    if (['hidden', 'password', 'checkbox', 'radio', 'submit', 'button'].includes(el.type) || !el.value) continue;
-    let kind = null;
-    for (const [k, re] of pats) { re.lastIndex = 0; if (re.test(el.value)) { kind = k; break; } }
-    const label = el.labels && el.labels[0] ? el.labels[0].innerText : '';
-    if (!kind && (nameRe.test(el.name || '') || nameRe.test(el.id || '') || nameRe.test(label))) kind = 'name';
-    if (kind) add(el.getBoundingClientRect(), kind);
-  }
-  for (const tr of document.querySelectorAll('tr')) {
-    const cells = [...tr.children];
-    cells.forEach((c, i) => { if (c.tagName === 'TH' && nameRe.test(c.innerText) && cells[i + 1] && cells[i + 1].tagName === 'TD')
-      add(cells[i + 1].getBoundingClientRect(), 'name'); });
-  }
-  for (const table of document.querySelectorAll('table')) {
-    const rows = [...table.querySelectorAll('tr')];
-    if (!rows.length) continue;
-    const head = [...rows[0].children];
-    if (head.length < 2 || !head.every(c => c.tagName === 'TH')) continue;
-    head.forEach((th, i) => { if (!nameRe.test(th.innerText)) return;
-      for (const tr of rows.slice(1)) { const td = tr.children[i]; if (td) add(td.getBoundingClientRect(), 'name'); } });
+    for (const tr of root.querySelectorAll('tr')) {
+      const cells = [...tr.children];
+      cells.forEach((c, i) => { if (c.tagName === 'TH' && nameRe.test(c.innerText) && cells[i + 1] && cells[i + 1].tagName === 'TD')
+        add(cells[i + 1].getBoundingClientRect(), 'name'); });
+    }
+    for (const table of root.querySelectorAll('table')) {
+      const rows = [...table.querySelectorAll('tr')];
+      if (!rows.length) continue;
+      const head = [...rows[0].children];
+      if (head.length < 2 || !head.every(c => c.tagName === 'TH')) continue;
+      head.forEach((th, i) => { if (!nameRe.test(th.innerText)) return;
+        for (const tr of rows.slice(1)) { const td = tr.children[i]; if (td) add(td.getBoundingClientRect(), 'name'); } });
+    }
   }
   return out;
 }"""
+# DOM 으로 잴 수 없는 콘텐츠(캔버스·플러그인·임베드). 있으면 사람이 미리보기를 확인했다는 표시 없이 이미지를 만들지 않는다
+NONDOM = "() => [...document.querySelectorAll('canvas, embed, object')].map(e => e.tagName.toLowerCase())"
+_FRAME_RECT = "e => { const r = e.getBoundingClientRect(); return {x: r.left + scrollX + e.clientLeft, y: r.top + scrollY + e.clientTop}; }"
+
+
+def measure_pii(page) -> list[dict]:
+    """메인 문서와 모든 iframe(다른 도메인 포함)의 개인정보 위치를 메인 문서 좌표로 잰다."""
+    rects = list(page.evaluate(MEASURE_PII))
+    for frame in page.frames[1:]:
+        x = y = 0.0
+        f = frame
+        while f.parent_frame:
+            off = f.frame_element().evaluate(_FRAME_RECT)
+            x, y, f = x + off["x"], y + off["y"], f.parent_frame
+        for r in frame.evaluate(MEASURE_PII):
+            rects.append(dict(r, x=round(r["x"] + x), y=round(r["y"] + y)))
+    return rects
+
+
+def find_nondom(page) -> list[str]:
+    found = []
+    for frame in page.frames:
+        try:
+            found += frame.evaluate(NONDOM)
+        except Exception:  # noqa: BLE001 - 읽을 수 없는 프레임도 DOM 밖으로 본다
+            found.append("unreadable-iframe")
+    return found
 
 _BOX_RECT = "e => { const r = e.getBoundingClientRect(); return {x: Math.round(r.left + scrollX), y: Math.round(r.top + scrollY), w: Math.ceil(r.width), h: Math.ceil(r.height)}; }"
 
@@ -152,12 +187,16 @@ def draw_box(img: Image.Image, rect, n: int) -> None:
 
 
 def render_shot(raw_menu_dir: Path, out_dir: Path, name: str, *, preview_dir: Path | None = None,
-                extra=(), boxes: list[dict] | None = None, img_prefix: str = "img/") -> dict:
+                extra=(), boxes: list[dict] | None = None, img_prefix: str = "img/",
+                reviewed_nondom: bool = False) -> dict:
     raw_menu_dir, out_dir = Path(raw_menu_dir), Path(out_dir)
     meta = json.loads((raw_menu_dir / "meta.json").read_text(encoding="utf-8"))
     # 가림은 실패하면 닫힌다: 측정이 없거나, 흔들렸거나, 모양이 틀리면 이미지를 만들지 않는다
     if "pii_rects" not in meta:
         raise ValueError("meta.json 에 pii_rects 가 없다 — 이 화면을 다시 수집한다")
+    if meta.get("nondom") and not reviewed_nondom:
+        raise ValueError(f"DOM 으로 잴 수 없는 콘텐츠가 있다({', '.join(sorted(set(meta['nondom'])))}) — 미리보기를 "
+                         "원본 크기로 확인하고 필요한 곳을 extra 로 가린 뒤 --reviewed-nondom 으로 다시 만든다")
     if meta.get("rects_stable") is False:
         raise ValueError("캡처 전후 가림 좌표가 달랐다 — 화면이 멈춘 상태에서 다시 수집한다")
     boxes = meta.get("box_rects", []) if boxes is None else boxes
@@ -194,8 +233,11 @@ def main() -> None:
     ap.add_argument("--name", required=True, help="출력 이름(예: V-003_1)")
     ap.add_argument("--preview-dir", type=Path)
     ap.add_argument("--extra", default="[]", help="추가로 가릴 좌표 JSON [[x,y,w,h], ...]")
+    ap.add_argument("--reviewed-nondom", action="store_true",
+                    help="캔버스·임베드 같은 DOM 밖 콘텐츠를 미리보기로 확인했다(필요한 곳은 --extra 로 가림)")
     a = ap.parse_args()
-    shot = render_shot(a.raw_menu, a.out_dir, a.name, preview_dir=a.preview_dir, extra=json.loads(a.extra))
+    shot = render_shot(a.raw_menu, a.out_dir, a.name, preview_dir=a.preview_dir, extra=json.loads(a.extra),
+                       reviewed_nondom=a.reviewed_nondom)
     print(json.dumps(shot, ensure_ascii=False))
 
 

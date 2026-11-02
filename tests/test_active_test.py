@@ -157,3 +157,12 @@ def test_record_and_scrubbed_har_survive_a_closed_window(browser, demo, tmp_path
     assert record["attempts"] == 1 and record["aborted"]
     assert "wrong-pass" not in (out / "network.har").read_text(encoding="utf-8")
     assert not (out / ".network.har").exists()
+
+
+def test_abort_reason_is_scrubbed(browser, demo, tmp_path):
+    def drive(page):
+        raise RuntimeError("failed at http://x/login?userPw=s3cret")
+    with pytest.raises(RuntimeError):
+        run(browser, demo, tmp_path, driver=drive)
+    record = json.loads((tmp_path / "raw" / "ACT-SAFE-05-06-02" / "record.json").read_text(encoding="utf-8"))
+    assert "s3cret" not in record["aborted"]

@@ -20,6 +20,8 @@ from urllib.parse import parse_qsl, unquote, urljoin, urlparse
 from scripts.redact import scrub_text
 
 SAFE_METHODS = ("GET", "HEAD", "OPTIONS")
+# 리다이렉트 목적지에 제어 문자·HTML 특수문자가 있으면 따라가지 않는다
+BAD_LOCATION = re.compile(r"[\x00-\x1f\x7f<>\"'\\]")
 
 # 주소만 열어도 상태가 바뀌기 쉬운 GET 을 낱말로 판단한다. 경로 조각·쿼리를 낱말로 쪼갠다
 # (camelCase, _, -, . 기준: actionLogout.do → action·logout, delete_ok → delete·ok, memberDelete → member·delete).
@@ -164,7 +166,7 @@ class Guard:
             route.fulfill(response=resp)
             return
         nxt = urljoin(req.url, location)
-        reason = self.decide("GET", nxt, True)
+        reason = "bad-location" if BAD_LOCATION.search(nxt) else self.decide("GET", nxt, True)
         if reason:
             self._log(self.blocked_log, "GET", nxt, f"redirect-{reason}")
             route.fulfill(status=200, content_type="text/html; charset=utf-8",
@@ -173,7 +175,7 @@ class Guard:
             return
         headers = {k: v for k, v in resp.headers.items() if k.lower() == "set-cookie"}
         route.fulfill(status=200, content_type="text/html; charset=utf-8", headers=headers,
-                      body=f'<html data-guard-shim="1"><script>location.replace({json.dumps(nxt)})</script></html>')
+                      body=f'<html data-guard-shim="1"><script>location.replace({_js_string(nxt)})</script></html>')
 
     def _on_websocket(self, ws):
         # connect_to_server 를 부르지 않으므로 서버와 연결되지 않는다. 페이지가 보낸 메시지만 기록한다.
@@ -189,6 +191,14 @@ class Guard:
             yield self
         finally:
             self.temporary.remove(entry)
+
+
+def _js_string(value: str) -> str:
+    """<script> 안에 넣어도 안전한 JS 문자열(HTML 특수문자와 줄 구분자를 이스케이프)."""
+    out = json.dumps(value)
+    for ch, esc in (("<", "\\u003c"), (">", "\\u003e"), ("&", "\\u0026"), ("\u2028", "\\u2028"), ("\u2029", "\\u2029")):
+        out = out.replace(ch, esc)
+    return out
 
 
 def settle(page, timeout_ms: int = 10_000) -> None:

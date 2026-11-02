@@ -20,7 +20,7 @@ import time
 from datetime import datetime, timezone
 from pathlib import Path
 
-from scripts.collect import scrub_har
+from scripts.redact import scrub_har, scrub_text
 from scripts.guard import Guard, install_guard, is_destructive
 from scripts.session import new_context
 
@@ -125,7 +125,7 @@ def run_active_test(browser, storage_state, intake: dict, menu_map: dict, *, ite
         page.screenshot(path=str(out / "final.png"), full_page=True)
         record["final_screenshot"] = "final.png"
     except Exception as e:  # noqa: BLE001 - 사용자가 창을 닫는 등. 기록은 아래에서 반드시 남긴다
-        record["aborted"] = f"{type(e).__name__}: {str(e).splitlines()[0][:200]}"
+        record["aborted"] = f"{type(e).__name__}: {scrub_text(str(e).splitlines()[0])[:200]}"
         raise
     finally:
         # 서버에 이미 보낸 승인 요청의 기록(record.json)과 가린 HAR 은 어떤 경우에도 남긴다
