@@ -1,5 +1,5 @@
 4ac46371597c244ff640cb5090db3187e657a4b83934e644845e02672a912fd9  .claude/shared/BASELINE.md
-e6b7255e251fae180891178dc54e93117e0e522c67cd10145600f71c36216ee9  .claude/shared/VERSION
+b60eb1aee608b0e18ce0ee958536003246bf2618862ab401797f7e001a1b5604  .claude/shared/VERSION
 f8a9c49b1c8d027a750e2326551c17f0f76adaaacada00965ab02ac85a5b3044  .claude/skills/agentmemory/SKILL.md
 a37e0e9697144819e1d965176ac4ae5bc3fa02d11e7812036bbcadf6dafe2400  .claude/skills/brainstorming/LICENSE
 a32d2255354775aa124855aa7100cf276bea096fff4ebb3a0edf57be216e6c72  .claude/skills/brainstorming/SKILL.md
@@ -17,7 +17,7 @@ f833693c8fce3700fc9f841562d80f8015cd40f652c168a3405ac3e46947a1fe  .claude/skills
 a37e0e9697144819e1d965176ac4ae5bc3fa02d11e7812036bbcadf6dafe2400  .claude/skills/finishing-a-development-branch/LICENSE
 8db5a922b242dd4e1bf824cb91c13b3e8d8e8a86d6ceaf7f0774eb9cce909d65  .claude/skills/finishing-a-development-branch/SKILL.md
 bed30c62e7dc6b79aff537df3a3527f9fffc77b9552c9ba7f4605ca93c3b983c  .claude/skills/progress-report/SKILL.md
-5b740c8cce43877654c4ceacc3a6c16095ef4f2a210ba35b29a875f97e551cae  .claude/skills/progress-report/scripts/progress.sh
+cc3d38324a45ea8812de3f2d4bc6331638eacce46181acb1a6749164fe9958b1  .claude/skills/progress-report/scripts/progress.sh
 3b27b6d37a9a1c1a18d355a82158c510cede9b732f9d30249fa983730f42810e  .claude/skills/progress-report/templates/sdd-check.yml
 a37e0e9697144819e1d965176ac4ae5bc3fa02d11e7812036bbcadf6dafe2400  .claude/skills/receiving-code-review/LICENSE
 091df1629510af1b92fc4abd6f96732ebedb4cb2c0f3457e8f2740b0504a2438  .claude/skills/receiving-code-review/SKILL.md
@@ -35,7 +35,7 @@ a37e0e9697144819e1d965176ac4ae5bc3fa02d11e7812036bbcadf6dafe2400  .claude/skills
 81dd9d5a3fb0b09b96b5829f03b9796842f3199ef7591d1ba1c2db2a515f64d0  .claude/skills/subagent-driven-development/implementer-prompt.md
 0828a5e9cbb12ba49f14621dd8c3953c48c0fc383e75bb5494f055ed0d6d824f  .claude/skills/subagent-driven-development/re-review-prompt.md
 f9275175b2276b1d5fdb1bae0bedaadd2a950659b7c6f311ea37ff85e1861b1f  .claude/skills/subagent-driven-development/scripts/review-package
-75ca46c756ba4209ca36e0d3d65567257ceb33bc7a6775b9dad946707cb3bd7b  .claude/skills/subagent-driven-development/scripts/sdd-workspace
+3914acf530a9bc0f173bd092812f089c20ce7d41601a80c623fe6e4fe9887f54  .claude/skills/subagent-driven-development/scripts/sdd-workspace
 cc563538e09abf719b34ddf4b2fa7a65cf3b301729039dbfa923cb060f729146  .claude/skills/subagent-driven-development/scripts/task-brief
 bfed55c8f19d0ff6ed57b0fe09127c92890e9311c6c73917129598826bf9ebe8  .claude/skills/subagent-driven-development/task-reviewer-prompt.md
 c24733a5b1821bd6bed1fc950261f0b9f4e90097e0bbb96459d8179713730789  .claude/skills/systematic-debugging/CREATION-LOG.md

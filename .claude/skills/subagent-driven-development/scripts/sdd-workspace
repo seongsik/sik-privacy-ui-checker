@@ -42,7 +42,9 @@ slug=$(basename "$plan" .md)
 [ -n "$slug" ] && [ "$slug" != "." ] && [ "$slug" != ".." ] \
   || { echo "cannot derive a workspace name from: $plan" >&2; exit 2; }
 
-root=$(git rev-parse --show-toplevel)
+# Physical path, the same form pwd -P gives plan_dir below: on Windows Git Bash
+# --show-toplevel prints "C:/x" while pwd -P prints "/c/x".
+root=$(CDPATH= cd -- "$(git rev-parse --show-toplevel)" && pwd -P)
 base="$root/.superpowers/sdd"
 
 # Normalize the plan path (physical directory, so relative/absolute/../
@@ -58,9 +60,15 @@ esac
 # True when the workspace at $1 is (or becomes) this plan's: an existing
 # marker must name this plan; a missing marker means a new workspace or a
 # pre-marker legacy one, and either way the plan claims it by writing one.
+# An absolute marker for an in-repo plan was written before root was
+# normalized; it is claimed and rewritten repo-relative.
 owns() {
   if [ -e "$1/plan-path" ]; then
-    [ "$(cat "$1/plan-path")" = "$plan_id" ]
+    case "$(cat "$1/plan-path")" in
+      "$plan_id") ;;
+      "$plan_abs") printf '%s\n' "$plan_id" > "$1/plan-path" ;;
+      *) return 1 ;;
+    esac
   else
     mkdir -p "$1"
     printf '%s\n' "$plan_id" > "$1/plan-path"

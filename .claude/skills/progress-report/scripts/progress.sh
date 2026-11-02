@@ -11,8 +11,10 @@ set -euo pipefail
 USAGE="usage: progress.sh done <plan-file> <task-number> | status [--tsv] | report | check [--ci] | baseline"
 die() { echo "progress.sh: $*" >&2; exit 2; }
 
-ROOT=$(git rev-parse --show-toplevel 2>/dev/null) || die "not inside a git repository"
-cd "$ROOT"
+GIT_ROOT=$(git rev-parse --show-toplevel 2>/dev/null) || die "not inside a git repository"
+cd "$GIT_ROOT"
+# Physical path as pwd -P spells it; on Windows Git Bash GIT_ROOT is "C:/x", ROOT "/c/x".
+ROOT=$(pwd -P)
 PROJECT=$(basename "$ROOT")
 REQ_FILE=docs/requirements/REQUIREMENTS.md
 CHANGES_FILE=docs/requirements/CHANGES.md
@@ -120,12 +122,16 @@ scan_plan_tasks() {
   ' "$1"
 }
 
-# find_workspace <plan> : Superpowers SDD workspace dir for this plan, or empty
+# find_workspace <plan> : Superpowers SDD workspace dir for this plan, or empty.
+# A marker holding the absolute in-repo path (sdd-workspace before 1.7.3 on Windows
+# Git Bash) is compared with the repository root removed.
 find_workspace() {
-  local d
+  local d m
   for d in .superpowers/sdd/*/; do
     [ -f "$d/plan-path" ] || continue
-    if [ "$(cat "$d/plan-path")" = "$1" ]; then printf '%s' "${d%/}"; return 0; fi
+    m=$(cat "$d/plan-path")
+    case "$m" in "$ROOT"/*) m=${m#"$ROOT"/} ;; "$GIT_ROOT"/*) m=${m#"$GIT_ROOT"/} ;; esac
+    if [ "$m" = "$1" ]; then printf '%s' "${d%/}"; return 0; fi
   done
   d=".superpowers/sdd/$(basename "$1" .md)"
   if [ -d "$d" ] && [ ! -f "$d/plan-path" ]; then printf '%s' "$d"; fi
@@ -357,7 +363,7 @@ cmd_status() {
 
 cmd_done() {
   local plan=$1 n=$2 line title reqs commits tests ws l rep
-  case "$plan" in "$ROOT"/*) plan=${plan#"$ROOT"/} ;; esac
+  case "$plan" in "$ROOT"/*) plan=${plan#"$ROOT"/} ;; "$GIT_ROOT"/*) plan=${plan#"$GIT_ROOT"/} ;; esac
   case "$plan" in /*|../*|*/../*|*/..) die "plan must be a path inside the repository: $plan" ;; esac
   [ -f "$plan" ] || die "no such plan file: $plan"
   no_symlink "$plan"
