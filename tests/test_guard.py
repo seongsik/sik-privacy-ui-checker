@@ -230,3 +230,15 @@ def test_allowed_readonly_posts_are_logged(browser, demo):
     page.wait_for_selector("table.orders tr")
     assert any(e["method"] == "POST" and e["reason"] == "allow-post" for e in guard.allowed_log)
     ctx.close()
+
+
+@pytest.mark.parametrize("path", ["/LogOut", "/SignOut", "/log-out", "/sign-out", "/Account/LogOff", "/a?mode=withdraw",
+                                  "/member/LogOut.do"])
+def test_split_compound_logout_words_are_denied(path):
+    assert Guard(INTAKE, {}).decide("GET", BASE + path, True) == "deny-pattern"
+
+
+def test_logged_urls_are_scrubbed():
+    g = Guard(INTAKE, {})
+    g._log(g.blocked_log, "GET", BASE + "/x?userPw=s3cret&id=kim", "deny-pattern")
+    assert "s3cret" not in g.blocked_log[0]["url"] and "kim" in g.blocked_log[0]["url"]

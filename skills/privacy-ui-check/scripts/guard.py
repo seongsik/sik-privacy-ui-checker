@@ -45,17 +45,32 @@ def _segments(url: str) -> tuple[list[str], list[tuple[str, str]]]:
     return segs, parse_qsl(unquote(parsed.query), keep_blank_values=True)
 
 
+# 낱말로 쪼개면 흩어지는 합성어(LogOut → log·out, sign-out → sign·out)는 구분자를 뺀 소문자에서 찾는다
+COMPOUND = ("logout", "signout", "logoff", "signoff")
+
+
+def _compact(text: str) -> str:
+    return re.sub(r"[^0-9a-z]+", "", text.lower())
+
+
+def is_destructive(url: str) -> bool:
+    """파괴 낱말·합성어만 본다(능동 시험 대상 검사용: 승인 대상은 변경 요청이지만 파괴 요청이면 안 된다)."""
+    segs, query = _segments(url)
+    for part in segs + [v for _, v in query]:
+        if _words(part) & DESTRUCTIVE or any(c in _compact(part) for c in COMPOUND):
+            return True
+    return any(k.lower() in ACTION_KEYS and "withdraw" in _words(v) for k, v in query)
+
+
 def is_state_changing(url: str) -> bool:
+    if is_destructive(url):
+        return True
     segs, query = _segments(url)
     for seg in segs:
         words = _words(seg)
-        if words & DESTRUCTIVE or (words & MUTATING and not words & VIEW):
+        if words & MUTATING and not words & VIEW:
             return True
-    for key, value in query:
-        vwords = _words(value)
-        if vwords & DESTRUCTIVE or (key.lower() in ACTION_KEYS and vwords & MUTATING):
-            return True
-    return False
+    return any(key.lower() in ACTION_KEYS and _words(value) & MUTATING for key, value in query)
 
 
 def _normalize(url: str) -> str:
@@ -106,7 +121,12 @@ class Guard:
         return method == "POST" and any(p.fullmatch(urlparse(url).path) for p in self.allow_post)
 
     def _log(self, which: list, method: str, url: str, reason: str | None = None):
-        which.append({"method": method, "url": url, "reason": reason, "ts": time.time()})
+        from scripts.redact import scrub_text  # 기록(meta.json)에 비밀번호·토큰이 남지 않게
+        which.append({"method": method, "url": scrub_text(url), "reason": scrub_text(reason) if reason else None,
+                      "ts": time.time()})
+
+    def is_user_denied(self, url: str) -> bool:
+        return any(p.search(_normalize(url)) for p in self.deny)
 
     # ── Playwright 연결 ──
     def _on_route(self, route):
@@ -122,7 +142,8 @@ class Guard:
         elif self.is_allowed_post(req.method, req.url):
             # 허용한 조회성 POST 도 무엇이 나갔는지 남긴다(본문은 비밀번호·토큰을 가린 앞부분만)
             from scripts.redact import scrub_text
-            self.allowed_log.append({"method": req.method, "url": req.url, "reason": "allow-post", "ts": time.time(),
+            self.allowed_log.append({"method": req.method, "url": scrub_text(req.url), "reason": "allow-post",
+                                     "ts": time.time(),
                                      "body": scrub_text(req.post_data or "")[:300]})
         route.continue_()
 

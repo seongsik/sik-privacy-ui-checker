@@ -21,7 +21,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from scripts.collect import scrub_har
-from scripts.guard import Guard, install_guard
+from scripts.guard import Guard, install_guard, is_destructive
 from scripts.session import new_context
 
 TAG = re.compile(r"<script.*?</script>|<style.*?</style>|<[^>]+>", re.S | re.I)
@@ -53,7 +53,8 @@ def run_active_test(browser, storage_state, intake: dict, menu_map: dict, *, ite
 
     checker = Guard(intake, menu_map)
     for m, u in targets:
-        if not checker._in_scope(u) or checker.decide("GET", u, False) == "deny-pattern":
+        # 승인 대상은 변경 요청(로그인 처리 등)일 수 있지만, 범위 밖·파괴 요청·사용자 금지 경로는 안 된다
+        if not checker._in_scope(u) or is_destructive(u) or checker.is_user_denied(u):
             raise ValueError(f"시험 대상이 점검 범위 밖이거나 금지 목록에 걸린다: {m} {u}")
 
     ctx = new_context(browser, Path(storage_state) if storage_state else None,
