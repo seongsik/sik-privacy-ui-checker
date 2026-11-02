@@ -115,3 +115,18 @@ def test_cdp_url_must_be_local():
     p.chromium.connect_over_cdp = lambda url: url
     with pytest.raises(ValueError, match="로컬"):
         session.launch_browser(p, "cdp", cdp_url="http://10.0.0.5:9222")
+
+
+@pytest.mark.parametrize("bad", ["http://127.0.0.1@evil.example:9222", "http://127.0.0.1:9222\@evil", "http://127.0.0.1 :9222",
+                                 "file://127.0.0.1/x", "http://127.0.0.1:notaport"])
+def test_cdp_url_rejects_tricky_forms(bad):
+    p = _FakePlaywright()
+    p.chromium.connect_over_cdp = lambda url: url
+    with pytest.raises(ValueError):
+        session.launch_browser(p, "cdp", cdp_url=bad)
+
+
+def test_cdp_url_is_rebuilt_from_checked_parts():
+    p = _FakePlaywright()
+    p.chromium.connect_over_cdp = lambda url: url
+    assert session.launch_browser(p, "cdp", cdp_url="http://localhost:9333/json/version?x=1") == "http://localhost:9333"

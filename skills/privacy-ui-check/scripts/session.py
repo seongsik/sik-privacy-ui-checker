@@ -12,6 +12,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 from pathlib import Path
 from urllib.parse import urlparse
 
@@ -56,6 +57,21 @@ BROWSERS = ("chromium", "chrome", "cdp")
 CDP_URL = "http://127.0.0.1:9222"
 
 
+def _local_cdp_url(cdp_url: str) -> str:
+    """CDP 주소를 검사하고, 검사한 부분(로컬 호스트·포트)만으로 다시 만든다. 사용자 정보·역슬래시·공백이 있으면 거부."""
+    if re.search(r"[\s\\@]", cdp_url):
+        raise ValueError(f"CDP 주소 형식이 올바르지 않다: {cdp_url!r}")
+    parsed = urlparse(cdp_url)
+    try:
+        port = parsed.port
+    except ValueError:
+        port = None
+    if parsed.scheme not in ("http", "ws") or parsed.hostname not in ("127.0.0.1", "localhost", "::1") or not port:
+        raise ValueError(f"CDP 주소는 이 PC(로컬)의 http 주소와 포트여야 한다: {cdp_url!r}")
+    host = "[::1]" if parsed.hostname == "::1" else parsed.hostname
+    return f"http://{host}:{port}"
+
+
 def launch_browser(p, name: str = "chromium", *, headless: bool = True, cdp_url: str = CDP_URL):
     """점검용 브라우저를 띄우거나 연결한다.
     chromium = Playwright 가 내려받은 Chromium, chrome = PC 에 설치된 정식 Chrome(새 격리 프로필),
@@ -65,10 +81,7 @@ def launch_browser(p, name: str = "chromium", *, headless: bool = True, cdp_url:
     if name not in BROWSERS:
         raise ValueError(f"브라우저는 {BROWSERS} 중 하나: {name}")
     if name == "cdp":
-        host = urlparse(cdp_url).hostname
-        if host not in ("127.0.0.1", "localhost", "::1"):
-            raise ValueError(f"CDP 주소는 이 PC(로컬)여야 한다: {cdp_url}")
-        return p.chromium.connect_over_cdp(cdp_url)
+        return p.chromium.connect_over_cdp(_local_cdp_url(cdp_url))
     kw = {"headless": headless}
     if name == "chrome":
         kw["channel"] = "chrome"
