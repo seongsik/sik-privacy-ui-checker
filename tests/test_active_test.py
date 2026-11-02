@@ -134,3 +134,10 @@ def test_redirects_from_targets_are_never_followed(browser, demo, tmp_path):
                  targets=[("GET", demo.url("/go"))], driver=drive)
     assert seen["status"] == 200 and "/go" in seen["url"]
     assert "/notice" in record["observations"][0]["text"]
+
+
+def test_approved_target_bodies_are_dropped_from_har(browser, demo, tmp_path):
+    run(browser, demo, tmp_path)
+    har = json.loads((tmp_path / "raw" / "ACT-SAFE-05-06-02" / "network.har").read_text(encoding="utf-8"))
+    posts = [e for e in har["log"]["entries"] if e["request"]["method"] == "POST"]
+    assert posts and all("admin" not in (e["request"].get("postData") or {}).get("text", "") for e in posts)

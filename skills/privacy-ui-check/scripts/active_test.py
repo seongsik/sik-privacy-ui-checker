@@ -31,6 +31,22 @@ def _same_target(method: str, url: str, targets) -> bool:
     return any(method == m.upper() and url.split("?")[0] == u.split("?")[0] for m, u in targets)
 
 
+def drop_target_inputs(har: dict, targets) -> dict:
+    """승인 대상 요청에는 사용자가 입력한 값(비밀번호 포함)이 실린다. 본문과 쿼리 값을 통째로 지운다."""
+    for e in har.get("log", {}).get("entries", []):
+        req = e.get("request", {})
+        if not _same_target(req.get("method", ""), req.get("url", ""), targets):
+            continue
+        base, _, query = req["url"].partition("?")
+        if query:
+            req["url"] = base + "?" + "&".join(p.split("=", 1)[0] + "=***" for p in query.split("&"))
+        for q in req.get("queryString", []):
+            q["value"] = "***"
+        if req.get("postData"):
+            req["postData"] = {"mimeType": req["postData"].get("mimeType", ""), "text": "*** (승인 시험 입력값은 저장하지 않음)"}
+    return har
+
+
 def run_active_test(browser, storage_state, intake: dict, menu_map: dict, *, item_id: str, approval: dict,
                     start_url: str, targets: list[tuple[str, str]], max_attempts: int,
                     raw_dir: Path, workdir: Path, driver=None, timeout_s: int = 600, done_text: str | None = None) -> dict:
@@ -110,7 +126,8 @@ def run_active_test(browser, storage_state, intake: dict, menu_map: dict, *, ite
     ctx.close()
 
     (out / "network.har").write_text(
-        json.dumps(scrub_har(json.loads(har_tmp.read_text(encoding="utf-8"))), ensure_ascii=False), encoding="utf-8")
+        json.dumps(scrub_har(drop_target_inputs(json.loads(har_tmp.read_text(encoding="utf-8")), targets)),
+                   ensure_ascii=False), encoding="utf-8")
     har_tmp.unlink()
     (out / "record.json").write_text(json.dumps(record, ensure_ascii=False, indent=2), encoding="utf-8")
     return record

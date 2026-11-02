@@ -198,3 +198,22 @@ def test_scrub_har_keeps_ordinary_names():
     har = {"log": {"entries": [{"request": {"url": "https://x/a?passport_no=M123&keyword=kim&author=lee"}}]}}
     text = json.dumps(scrub_har(har))
     assert "M123" in text and "kim" in text and "lee" in text
+
+
+@pytest.mark.parametrize("name", ["userPw", "loginPw", "mbrPw", "encPw", "userPass", "mem_pass", "pass_word", "passWord"])
+def test_scrub_har_masks_korean_site_password_names(name):
+    har = {"log": {"entries": [{"request": {"url": f"https://x/login?userId=kim&{name}=s3cret",
+                                            "postData": {"text": f"userId=kim&{name}=s3cret"}}}]}}
+    text = json.dumps(scrub_har(har))
+    assert "s3cret" not in text and "kim" in text
+
+
+@pytest.mark.parametrize("name", ["passport_no", "compass", "keyword"])
+def test_scrub_har_keeps_lookalike_names(name):
+    har = {"log": {"entries": [{"request": {"url": f"https://x/a?{name}=M123"}}]}}
+    assert "M123" in json.dumps(scrub_har(har))
+
+
+def test_scrub_har_masks_page_password_field_names():
+    har = {"log": {"entries": [{"request": {"postData": {"text": "id=kim&k9z=s3cret"}}}]}}
+    assert "s3cret" not in json.dumps(scrub_har(har, extra_names=["k9z"]))

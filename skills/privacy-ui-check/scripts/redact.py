@@ -15,7 +15,11 @@ import re
 _SECRET = re.compile(
     r"(password|passwd|pwd|비밀번호|token|secret|sessid|session_?id|jsessionid|api[_\-]?key)"
     r"|(^|[_\-.])pw\d*($|[_\-.])|^otp$|^sid$", re.I)
-_SECRET_SUFFIX = re.compile(r"(pw|pass)\d*$", re.I)
+# 끝이 pw·pass 인 이름: 구분자 뒤(mem_pass), camelCase 경계(userPw, userPass), 흔한 소문자 접두(userpw, mbrpw).
+# compass, bypass 처럼 낱말 안에 붙은 pass 는 잡지 않는다.
+_SECRET_SUFFIX = re.compile(r"(?:^|[_\-.])(?:pw|pass)\d*$|(?:user|login|mbr|mem|member|usr|enc|new|old|cur|confirm|re)_?(?:pw|pass)\d*$",
+                            re.I)
+_SECRET_CAMEL = re.compile(r"[a-z0-9](?:Pw|PW|Pass|PASS)\d*$")
 _SECRET_PREFIX = re.compile(r"^(pw|pass)(\d|[_\-.]|[A-Z]|$)")  # 원래 대소문자로 본다(passport 는 제외)
 SECRET_HEADER = re.compile(r"cookie|authorization|token|auth|session|secret|api-?key", re.I)
 _PATH_SESSION = re.compile(r"(;jsessionid=)[^?#&;\s\"'\\]*", re.I)
@@ -26,7 +30,7 @@ _MULTIPART = re.compile(r'(name="([^"]+)"\r?\n(?:[^\r\n]+\r?\n)*\r?\n)([^\r\n]*)
 
 def is_secret_name(name: str, extra_names=()) -> bool:
     return bool(name in extra_names or _SECRET.search(name) or _SECRET_SUFFIX.search(name)
-                or _SECRET_PREFIX.match(name))
+                or _SECRET_CAMEL.search(name) or _SECRET_PREFIX.match(name))
 
 
 def scrub_text(text: str, extra_names=()) -> str:

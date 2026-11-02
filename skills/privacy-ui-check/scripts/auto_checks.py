@@ -15,6 +15,8 @@ from html.parser import HTMLParser
 from pathlib import Path
 from urllib.parse import parse_qsl, urlparse
 
+from scripts.redact import is_secret_name
+
 COMMON = "COMMON"
 
 ITEM_IDS = {
@@ -39,7 +41,6 @@ RRN = re.compile(r"\b\d{6}-[1-4]\d{6}\b")
 CARD = re.compile(r"\b\d{4}[- ]\d{4}[- ]\d{4}[- ]\d{4}\b")
 EMAIL = re.compile(r"[\w.+-]+@[\w-]+\.[\w.-]+")
 MOBILE = re.compile(r"\b01[016789]-?\d{3,4}-?\d{4}\b")
-SECRET_PARAM = re.compile(r"(password|passwd|pwd)|(^|[_\-.])pw\d*($|[_\-.])|^pass$", re.I)
 SSN_FIELD = re.compile(r"jumin|ssn|rrn|resident|주민등록번호|주민번호|^\d{6}-\d{7}$|^0{6}-0{7}$", re.I)
 MARKETING = re.compile(r"마케팅|광고|홍보|이벤트|수신")
 TOKEN_KEY = re.compile(r"token|jwt|auth|session|access|refresh", re.I)
@@ -166,7 +167,7 @@ def check_page(r: PageRecord) -> list[dict]:
 
     get_pw_forms = [f for f in d.forms if f["method"] == "get" and any(i.get("type") == "password" for i in f["inputs"])]
     pw_urls = [e["request"]["url"] for e in r.har.get("log", {}).get("entries", [])
-               if any(SECRET_PARAM.search(k) for k, _ in parse_qsl(urlparse(e["request"]["url"]).query))]
+               if any(is_secret_name(k) for k, _ in parse_qsl(urlparse(e["request"]["url"]).query))]
     if get_pw_forms or pw_urls:
         out.append(_cand("password-in-url", mid,
                          [f"GET 폼 action={f['action']}" for f in get_pw_forms] + [f"요청 URL: {u}" for u in pw_urls[:3]],

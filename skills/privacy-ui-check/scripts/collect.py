@@ -129,6 +129,7 @@ def collect(browser, storage_state: Path, intake: dict, menu_map: dict, raw_dir:
             raise CollectStopped(reason, menu["id"], page.url)
 
         out.mkdir(parents=True, exist_ok=True)
+        pw_names = page.eval_on_selector_all("input[type=password]", "els => els.map(e => e.name).filter(Boolean)")
         pii_rects, box_rects, stable = _capture_with_rects(page, out / "screenshot.png",
                                                            (boxes or {}).get(menu["id"], []))
         (out / "dom.html").write_text(page.content(), encoding="utf-8")
@@ -149,7 +150,7 @@ def collect(browser, storage_state: Path, intake: dict, menu_map: dict, raw_dir:
         })
         ctx.close()  # 여기서 HAR 이 써진다
         har = json.loads(har_tmp.read_text(encoding="utf-8"))
-        _dump(out / "network.har", scrub_har(har))
+        _dump(out / "network.har", scrub_har(har, extra_names=pw_names))  # 화면의 비밀번호 칸 이름도 가린다
         har_tmp.unlink()
 
         if menu["id"] not in state["completed"]:

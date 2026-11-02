@@ -155,3 +155,9 @@ FULL_VALUES = ("900101-1234567", "4111-1111-1111-1111", "kim@example.com", "010-
 def test_evidence_never_carries_full_personal_values(r):
     text = json.dumps(ac.check_page(r), ensure_ascii=False)
     assert not [v for v in FULL_VALUES if v in text]
+
+
+def test_password_in_url_detects_camelcase_names():
+    r = rec(har_entries=[{"request": {"url": "https://shop.example.com/login.do?userId=kim&userPw=***", "method": "GET"},
+                          "response": {"content": {}}}])
+    assert "password-in-url" in keys(ac.check_page(r))
